@@ -141,16 +141,17 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 	public boolean[] getAction()
 	{
 		int distFromGap = closestGapDistance();
-		if(distFromGap > -1 && distFromGap <= 1 && !hasInitiatedJumpOverGap) {
+		if(distFromGap > -1 && distFromGap <= 2 && !hasInitiatedJumpOverGap) {
 			prevLeftUpDistance = 0;
 			prevRightUpDistance = 0;
 			prevLeftDownDistance = 0;
 			prevRightDownDistance = 0;
+			int rightUpDistFromEnemy = closestEnemyDistance(RIGHT|UP);
 			System.out.println("GAP " + distFromGap + " blocks to the right!");
 			// if we detect a gap coming up soon...
 			if(!isMarioOnGround) {
 				// stop moving right until we hit the ground
-				if(leftButtonCounter < 15) {
+				if(leftButtonCounter < 5) {
 					action[Mario.KEY_LEFT] = true;
 					leftButtonCounter++;
 				} else {
@@ -158,7 +159,7 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 				}
 				action[Mario.KEY_RIGHT] = false;
 				action[Mario.KEY_JUMP] = false;
-			} else if(isMarioAbleToJump) {
+			} else if(isMarioAbleToJump && (rightUpDistFromEnemy == -1 || rightUpDistFromEnemy > DIST_THRESHOLD)) {
 				// once we hit the ground, jump and go right!
 				System.out.println("Initiated jump!");
 				leftButtonCounter = 0;
@@ -188,7 +189,13 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 				groundCounter = 0;
 				hasJumped = true;
 			} else if(hasJumped) {
-				if(groundCounter < 15) {
+				if(distFromGap > 0) {
+					System.out.println("Jump aborted!");
+					hasJumped = false;
+					hasLanded = true;
+					hasInitiatedJumpOverGap = false;
+					groundCounter = 0;
+				} else if(groundCounter < 15) {
 					groundCounter++;
 				} else {
 					// yay! we made the jump!
@@ -210,6 +217,12 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 				shootCounter++;
 			} else {
 				shootCounter = 0;
+			}
+			// see if we're next to a persistent obstacle
+			if(!isEmpty(9,10) || !isEmpty(10,10) || !isEmpty(11,10)) {
+				obstacleCounter++;
+			} else {
+				obstacleCounter = 0;
 			}
 			int leftUpDistFromEnemy = closestEnemyDistance(LEFT|UP);
 			int rightUpDistFromEnemy = closestEnemyDistance(RIGHT|UP);
@@ -237,17 +250,26 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 						} else {
 							// you're surrounded! move and jump.
 							// if enemies on the right are moving away...
-							if(rightUpDistFromEnemy > prevRightUpDistance || rightDownDistFromEnemy > prevRightDownDistance) {
+							if(rightDownDistFromEnemy > prevRightDownDistance) {
 								// move right
 								action[Mario.KEY_RIGHT] = true;
 								action[Mario.KEY_LEFT] = false;
+								if(rightUpDistFromEnemy > prevRightUpDistance) {
+									action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+								} else {
+									action[Mario.KEY_JUMP] = false;
+								}
 							// otherwise, if they're moving closer...
 							} else {
 								// move left
 								action[Mario.KEY_RIGHT] = false;
 								action[Mario.KEY_LEFT] = true;
+								if(leftUpDistFromEnemy > prevLeftUpDistance) {
+									action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+								} else {
+									action[Mario.KEY_JUMP] = false;
+								}
 							}
-							action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
 						}
 					// otherwise, if there are enemies on the up left...
 					} else if(leftUpDistFromEnemy > -1 && leftUpDistFromEnemy <= DIST_THRESHOLD) {
@@ -261,17 +283,26 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 						} else {
 							// you're surrounded! move and jump.
 							// if enemies on the right are moving away...
-							if(rightUpDistFromEnemy > prevRightUpDistance || rightDownDistFromEnemy > prevRightDownDistance) {
+							if(rightDownDistFromEnemy > prevRightDownDistance) {
 								// move right
 								action[Mario.KEY_RIGHT] = true;
 								action[Mario.KEY_LEFT] = false;
+								if(rightUpDistFromEnemy > prevRightUpDistance) {
+									action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+								} else {
+									action[Mario.KEY_JUMP] = false;
+								}
 							// otherwise, if they're moving closer...
 							} else {
 								// move left
 								action[Mario.KEY_RIGHT] = false;
 								action[Mario.KEY_LEFT] = true;
+								if(leftUpDistFromEnemy > prevLeftUpDistance) {
+									action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+								} else {
+									action[Mario.KEY_JUMP] = false;
+								}
 							}
-							action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
 						}
 					// otherwise, if there aren't enemies on the left
 					} else {
@@ -301,10 +332,28 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 							action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
 						// otherwise, if there are enemies on the up left...
 						} else {
-							// you're surrounded! move right and jump
-							action[Mario.KEY_RIGHT] = true;
-							action[Mario.KEY_LEFT] = false;
-							action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+							// you're surrounded! move and jump.
+							// if enemies on the right are moving away...
+							if(rightDownDistFromEnemy > prevRightDownDistance) {
+								// move right
+								action[Mario.KEY_RIGHT] = true;
+								action[Mario.KEY_LEFT] = false;
+								if(rightUpDistFromEnemy > prevRightUpDistance) {
+									action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+								} else {
+									action[Mario.KEY_JUMP] = false;
+								}
+							// otherwise, if they're moving closer...
+							} else {
+								// move left
+								action[Mario.KEY_RIGHT] = false;
+								action[Mario.KEY_LEFT] = true;
+								if(leftUpDistFromEnemy > prevLeftUpDistance) {
+									action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+								} else {
+									action[Mario.KEY_JUMP] = false;
+								}
+							}
 						}
 					// otherwise, if there are enemies on the up left...
 					} else if(leftUpDistFromEnemy > -1 && leftUpDistFromEnemy <= DIST_THRESHOLD) {
@@ -316,10 +365,28 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 							action[Mario.KEY_JUMP] = false;
 						// otherwise, if there are enemies on the down left...
 						} else {
-							// you're surrounded! move right and jump
-							action[Mario.KEY_RIGHT] = true;
-							action[Mario.KEY_LEFT] = false;
-							action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+							// you're surrounded! move and jump.
+							// if enemies on the right are moving away...
+							if(rightDownDistFromEnemy > prevRightDownDistance) {
+								// move right
+								action[Mario.KEY_RIGHT] = true;
+								action[Mario.KEY_LEFT] = false;
+								if(rightUpDistFromEnemy > prevRightUpDistance) {
+									action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+								} else {
+									action[Mario.KEY_JUMP] = false;
+								}
+							// otherwise, if they're moving closer...
+							} else {
+								// move left
+								action[Mario.KEY_RIGHT] = false;
+								action[Mario.KEY_LEFT] = true;
+								if(leftUpDistFromEnemy > prevLeftUpDistance) {
+									action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+								} else {
+									action[Mario.KEY_JUMP] = false;
+								}
+							}
 						}
 					// otherwise, if there aren't enemies on the left
 					} else {
@@ -335,14 +402,12 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 				action[Mario.KEY_RIGHT] = true;
 				action[Mario.KEY_LEFT] = false;
 				action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+				if(obstacleCounter > 12) {
+					// jump over obstacle
+					action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+				}
 			}
-			// see if we're next to a persistent obstacle
-			if(!isEmpty(9,10) || !isEmpty(10,10) || !isEmpty(11,10)) {
-				obstacleCounter++;
-			} else {
-				obstacleCounter = 0;
-			}
-			if(obstacleCounter > 15) {
+			if(obstacleCounter > 50) {
 				// jump over obstacle
 				action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
 			}
