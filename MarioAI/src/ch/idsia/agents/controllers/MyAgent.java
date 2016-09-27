@@ -27,16 +27,16 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 		int yMin = 0;
 		int yMax = 19;
 		if((dir & UP) == 1) { // UP
-			yMax = 9;
+			yMax = 10;
 		}
 		if(((dir & DOWN) >> 1) == 1) { // DOWN
-			yMin = 10;
+			yMin = 9;
 		}
 		if(((dir & LEFT) >> 2) == 1) { // LEFT
-			xMax = 9;
+			xMax = 10;
 		}
 		if(((dir & RIGHT) >> 3) == 1) { // RIGHT
-			xMin = 10;
+			xMin = 9;
 		}
 		int closest = -1;
 		for(int x=xMin; x<xMax; x++) {
@@ -129,12 +129,23 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 	int groundCounter = 0;
 	int obstacleCounter = 0;
 	int leftButtonCounter = 0;
+	int shootCounter = 0;
+	int prevLeftUpDistance = 0;
+	int prevRightUpDistance = 0;
+	int prevLeftDownDistance = 0;
+	int prevRightDownDistance = 0;
+
+	public static final int DIST_THRESHOLD = 3;
 
 	// Actually perform an action by setting a slot in the action array to be true
 	public boolean[] getAction()
 	{
 		int distFromGap = closestGapDistance();
 		if(distFromGap > -1 && distFromGap <= 1 && !hasInitiatedJumpOverGap) {
+			prevLeftUpDistance = 0;
+			prevRightUpDistance = 0;
+			prevLeftDownDistance = 0;
+			prevRightDownDistance = 0;
 			System.out.println("GAP " + distFromGap + " blocks to the right!");
 			// if we detect a gap coming up soon...
 			if(!isMarioOnGround) {
@@ -164,6 +175,10 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 				action[Mario.KEY_SPEED] = action[Mario.KEY_JUMP] = false;
 			}
 		} else if(hasInitiatedJumpOverGap && !hasLanded) {
+			prevLeftUpDistance = 0;
+			prevRightUpDistance = 0;
+			prevLeftDownDistance = 0;
+			prevRightDownDistance = 0;
 			// if we're still jumping over the gap...
 			// keep jumping and moving right
 			action[Mario.KEY_LEFT] = false;
@@ -186,32 +201,157 @@ public class MyAgent extends BasicMarioAIAgent implements Agent
 			}
 		} else {
 			// otherwise, if no gap...
-			int upDistFromEnemy = closestEnemyDistance(UP);
-			int leftDistFromEnemy = closestEnemyDistance(LEFT);
-			int rightDistFromEnemy = closestEnemyDistance(RIGHT);
-			// move away from enemies
-			if(rightDistFromEnemy == -1 || rightDistFromEnemy > 2) {
+			// always shoot
+			if(shootCounter < 15) {
+				action[Mario.KEY_SPEED] = true;
+				shootCounter++;
+			} else if(shootCounter < 20) {
+				action[Mario.KEY_SPEED] = false;
+				shootCounter++;
+			} else {
+				shootCounter = 0;
+			}
+			int leftUpDistFromEnemy = closestEnemyDistance(LEFT|UP);
+			int rightUpDistFromEnemy = closestEnemyDistance(RIGHT|UP);
+			int leftDownDistFromEnemy = closestEnemyDistance(LEFT|DOWN);
+			int rightDownDistFromEnemy = closestEnemyDistance(RIGHT|DOWN);
+			// if there are enemies on the down right...
+			if(rightDownDistFromEnemy > -1 && rightDownDistFromEnemy <= DIST_THRESHOLD) {
+				// if there aren't enemies on the up right...
+				if(rightUpDistFromEnemy == -1 || rightUpDistFromEnemy > DIST_THRESHOLD) {
+					// move right and jump
+					action[Mario.KEY_RIGHT] = true;
+					action[Mario.KEY_LEFT] = false;
+					action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+				// otherwise, if there are enemies on the up right...
+				} else {
+					// if there are enemies on the down left...
+					if(leftDownDistFromEnemy > -1 && leftDownDistFromEnemy <= DIST_THRESHOLD) {
+						// if there aren't enemies on the up left...
+						if(leftUpDistFromEnemy == -1 || leftUpDistFromEnemy > DIST_THRESHOLD) {
+							// move left and jump
+							action[Mario.KEY_RIGHT] = false;
+							action[Mario.KEY_LEFT] = true;
+							action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+						// otherwise, if there are enemies on the up left...
+						} else {
+							// you're surrounded! move and jump.
+							// if enemies on the right are moving away...
+							if(rightUpDistFromEnemy > prevRightUpDistance || rightDownDistFromEnemy > prevRightDownDistance) {
+								// move right
+								action[Mario.KEY_RIGHT] = true;
+								action[Mario.KEY_LEFT] = false;
+							// otherwise, if they're moving closer...
+							} else {
+								// move left
+								action[Mario.KEY_RIGHT] = false;
+								action[Mario.KEY_LEFT] = true;
+							}
+							action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+						}
+					// otherwise, if there are enemies on the up left...
+					} else if(leftUpDistFromEnemy > -1 && leftUpDistFromEnemy <= DIST_THRESHOLD) {
+						// if there aren't enemies on the down left...
+						if(leftDownDistFromEnemy == -1 || leftDownDistFromEnemy > DIST_THRESHOLD) {
+							// move left and stop jumping
+							action[Mario.KEY_RIGHT] = false;
+							action[Mario.KEY_LEFT] = true;
+							action[Mario.KEY_JUMP] = false;
+						// otherwise, if there are enemies on the down left...
+						} else {
+							// you're surrounded! move and jump.
+							// if enemies on the right are moving away...
+							if(rightUpDistFromEnemy > prevRightUpDistance || rightDownDistFromEnemy > prevRightDownDistance) {
+								// move right
+								action[Mario.KEY_RIGHT] = true;
+								action[Mario.KEY_LEFT] = false;
+							// otherwise, if they're moving closer...
+							} else {
+								// move left
+								action[Mario.KEY_RIGHT] = false;
+								action[Mario.KEY_LEFT] = true;
+							}
+							action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+						}
+					// otherwise, if there aren't enemies on the left
+					} else {
+						// move left and jump
+						action[Mario.KEY_RIGHT] = false;
+						action[Mario.KEY_LEFT] = true;
+						action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+					}
+				}
+			// if there are enemies on the up right...
+			} else if(rightUpDistFromEnemy > -1 && rightUpDistFromEnemy <= DIST_THRESHOLD) {
+				// if there aren't enemies on the down right...
+				if(rightDownDistFromEnemy == -1 || rightDownDistFromEnemy > DIST_THRESHOLD) {
+					// move right and stop jumping
+					action[Mario.KEY_RIGHT] = true;
+					action[Mario.KEY_LEFT] = false;
+					action[Mario.KEY_JUMP] = false;
+				// otherwise, if there are enemies on the down right...
+				} else {
+					// if there are enemies on the down left...
+					if(leftDownDistFromEnemy > -1 && leftDownDistFromEnemy <= DIST_THRESHOLD) {
+						// if there aren't enemies on the up left...
+						if(leftUpDistFromEnemy == -1 || leftUpDistFromEnemy > DIST_THRESHOLD) {
+							// move left and jump
+							action[Mario.KEY_RIGHT] = false;
+							action[Mario.KEY_LEFT] = true;
+							action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+						// otherwise, if there are enemies on the up left...
+						} else {
+							// you're surrounded! move right and jump
+							action[Mario.KEY_RIGHT] = true;
+							action[Mario.KEY_LEFT] = false;
+							action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+						}
+					// otherwise, if there are enemies on the up left...
+					} else if(leftUpDistFromEnemy > -1 && leftUpDistFromEnemy <= DIST_THRESHOLD) {
+						// if there aren't enemies on the down left...
+						if(leftDownDistFromEnemy == -1 || leftDownDistFromEnemy > DIST_THRESHOLD) {
+							// move left and stop jumping
+							action[Mario.KEY_RIGHT] = false;
+							action[Mario.KEY_LEFT] = true;
+							action[Mario.KEY_JUMP] = false;
+						// otherwise, if there are enemies on the down left...
+						} else {
+							// you're surrounded! move right and jump
+							action[Mario.KEY_RIGHT] = true;
+							action[Mario.KEY_LEFT] = false;
+							action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+						}
+					// otherwise, if there aren't enemies on the left
+					} else {
+						// move left and jump
+						action[Mario.KEY_RIGHT] = false;
+						action[Mario.KEY_LEFT] = true;
+						action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+					}
+				}
+			// otherwise, if there aren't enemies on the right...
+			} else {
+				// move right and jump
 				action[Mario.KEY_RIGHT] = true;
 				action[Mario.KEY_LEFT] = false;
-			} else if(leftDistFromEnemy == -1 || leftDistFromEnemy > 2) {
-				action[Mario.KEY_RIGHT] = false;
-				action[Mario.KEY_LEFT] = true;
-			} else {
-				action[Mario.KEY_RIGHT] = false;
-				action[Mario.KEY_LEFT] = false;
+				action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
 			}
-			int distFromEnemy = closestEnemyDistance(ANYWHERE);
+			// see if we're next to a persistent obstacle
 			if(!isEmpty(9,10) || !isEmpty(10,10) || !isEmpty(11,10)) {
 				obstacleCounter++;
 			} else {
 				obstacleCounter = 0;
 			}
-			if((upDistFromEnemy == -1 || upDistFromEnemy > 4) || obstacleCounter > 35) {
-				// jump if there are nearby enemies
-				action[Mario.KEY_SPEED] = action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
+			if(obstacleCounter > 15) {
+				// jump over obstacle
+				action[Mario.KEY_JUMP] = isMarioAbleToJump || !isMarioOnGround;
 			}
+			prevLeftUpDistance = leftUpDistFromEnemy;
+			prevRightUpDistance = rightUpDistFromEnemy;
+			prevLeftDownDistance = leftDownDistFromEnemy;
+			prevRightDownDistance = rightDownDistFromEnemy;
 		}
-        // printObservation();
+        printObservation();
 		return action;
 	}
 
