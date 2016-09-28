@@ -28,13 +28,15 @@ import java.util.*;
 //   System.out.println(board);
 
 
-class BFSBot extends SlidingPlayer {
+class DFSBot extends SlidingPlayer {
 
     class Node {
         SlidingBoard board;
         int depth;
         Node parent;
         SlidingMove move;
+        ArrayList<Node> children = new ArrayList<Node>();
+        boolean visited = false;
         public Node(SlidingBoard board, int depth, Node parent, SlidingMove move) {
             this.board = board;
             this.depth = depth;
@@ -43,13 +45,13 @@ class BFSBot extends SlidingPlayer {
         }
     }
     
+    int countBacktracks;
     int currentMove;
     Deque<SlidingMove> correctMoves; // stack
     Set<String> configsTried;
-    Queue<Node> q;
 
     // The constructor gets the initial board
-    public BFSBot(SlidingBoard _sb) {
+    public DFSBot(SlidingBoard _sb) {
         super(_sb);
         findSolution(_sb);
     }
@@ -57,51 +59,57 @@ class BFSBot extends SlidingPlayer {
     private void findSolution(SlidingBoard _sb) {
         long memory = 1;
         long startTime = System.nanoTime();
+        countBacktracks = 0;
         currentMove = 0;
         correctMoves = null;
         configsTried = new HashSet<String>();
         configsTried.add(_sb.toString());
-        q = new LinkedList<Node>();
-        Node solvedNode = null;
-        int currentDepth = -1;
-        q.offer(new Node(_sb, 0, null, null));
-        while(!q.isEmpty() && solvedNode == null) {
-            Node node = q.poll();
-            SlidingBoard board = node.board;
-            if(board.isSolved()) {
-                solvedNode = node;
-                break;
-            }
-            if(node.depth > currentDepth) {
-                currentDepth++;
-                // System.out.println("Exploring depth "+currentDepth);
-            }
+        Node currentNode = new Node(_sb, 0, null, null);
+        while(currentNode != null && !currentNode.board.isSolved()) {
+            // System.out.println("Searching at depth " + currentNode.depth);
+            SlidingBoard board = currentNode.board;
             ArrayList<SlidingMove> legalMoves = board.getLegalMoves();
             for(SlidingMove move : legalMoves) {
                 SlidingBoard newBoard = new SlidingBoard(board);
                 newBoard.doMove(move);
+                // make sure not to repeat any board configurations
                 if(configsTried.contains(newBoard.toString())) {
                     continue;
                 }
                 configsTried.add(newBoard.toString());
-                // System.out.println(newBoard);
                 memory++;
-                Node newNode = new Node(newBoard, node.depth+1, node, move);
-                if(newBoard.isSolved()) {
-                    solvedNode = newNode;
+                Node newNode = new Node(newBoard, currentNode.depth+1, currentNode, move);
+                currentNode.children.add(newNode);
+            }
+            Node nextNotVisitedChild = null;
+            for(Node child : currentNode.children) {
+                if(!child.visited) {
+                    nextNotVisitedChild = child;
                     break;
                 }
-                q.offer(newNode);
+            }
+            if(nextNotVisitedChild != null) {
+                // visit the next child that hasn't been visited
+                currentNode = nextNotVisitedChild;
+            } else {
+                // we've visited all children. backtrack.
+                currentNode.visited = true;
+                while(currentNode.visited) {
+                    currentNode = currentNode.parent;
+                }
+                countBacktracks++;
+                // System.out.println("Backtracked to depth " + currentNode.depth);
             }
         }
         long moves = 1;
-        if(solvedNode != null) {
-            System.out.println("BFS Solution depth: "+solvedNode.depth);
-            moves = solvedNode.depth;
+        if(currentNode != null && currentNode.board.isSolved()) {
+            System.out.println("DFS Solution depth: " + currentNode.depth);
+            System.out.println("Backtracks: " + countBacktracks);
+            moves = currentNode.depth;
             correctMoves = new ArrayDeque<SlidingMove>();
-            while(solvedNode.move != null) {
-                correctMoves.push(solvedNode.move);
-                solvedNode = solvedNode.parent;
+            while(currentNode.move != null) {
+                correctMoves.push(currentNode.move);
+                currentNode = currentNode.parent;
             }
         } else {
             System.out.println("Failed to find a solution to the board.");
