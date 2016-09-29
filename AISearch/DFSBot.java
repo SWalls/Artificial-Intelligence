@@ -94,7 +94,7 @@ class DFSBot extends SlidingPlayer {
             } else {
                 // we've visited all children. backtrack.
                 currentNode.visited = true;
-                while(currentNode.visited) {
+                while(currentNode != null && currentNode.visited) {
                     currentNode = currentNode.parent;
                 }
                 countBacktracks++;

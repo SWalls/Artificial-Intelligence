@@ -71,18 +71,11 @@ class IDBot extends SlidingPlayer {
         configsTried.add(_sb.toString());
         q = new LinkedList<Node>();
         Node currentNode = new Node(_sb, 0, null, null);
-        while((currentNode != null || (!q.isEmpty() && (currentNode = q.peek()) != null)) && !currentNode.board.isSolved()) {
-            if(currentNode == null) {
-                if(!q.isEmpty()) {
-                    if(q.peek().depth > depthLimit) {
-                        // we've searched everything up to the depthLimit
-                        depthLimit += DEPTH_INCREMENT;
-                        System.out.println("Increased depth limit to " + depthLimit);
-                    }
-                    currentNode = q.poll();
-                } else {
-                    break;
-                }
+        while((currentNode != null || (!q.isEmpty() && (currentNode = q.poll()) != null)) && !currentNode.board.isSolved()) {
+            if(currentNode.depth > depthLimit) {
+                // we've searched everything up to the depthLimit
+                depthLimit += DEPTH_INCREMENT;
+                // System.out.println("Increased depth limit to " + depthLimit);
             }
             // System.out.println("Searching at depth " + currentNode.depth);
             SlidingBoard board = currentNode.board;
@@ -122,7 +115,7 @@ class IDBot extends SlidingPlayer {
                 }
                 countBacktracks++;
                 // System.out.println("Backtracked to depth " + currentNode.depth);
-            }
+            } 
         }
         long moves = 1;
         if(currentNode != null && currentNode.board.isSolved()) {
