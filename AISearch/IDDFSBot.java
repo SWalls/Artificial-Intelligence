@@ -28,7 +28,7 @@ import java.util.*;
 //   System.out.println(board);
 
 
-class DFSBot extends SlidingPlayer {
+class IDDFSBot extends SlidingPlayer {
 
     class Node {
         SlidingBoard board;
@@ -38,15 +38,15 @@ class DFSBot extends SlidingPlayer {
         ArrayList<Node> children = new ArrayList<Node>();
         boolean visited = false;
         public Node(SlidingBoard board, int depth, Node parent, SlidingMove move) {
-            DFSBot.memoryUsed++;
+            IDDFSBot.memoryUsed++;
             this.board = board;
             this.depth = depth;
             this.parent = parent;
             this.move = move;
         }
         public void eraseReferences() {
-            DFSBot.memoryUsed--;
-            DFSBot.memoryFreed++;
+            IDDFSBot.memoryUsed--;
+            IDDFSBot.memoryFreed++;
             parent = null;
             move = null;
             board = null;
@@ -65,10 +65,13 @@ class DFSBot extends SlidingPlayer {
     static long memoryFreed;
 
     // The constructor gets the initial board
-    public DFSBot(SlidingBoard _sb) {
+    public IDDFSBot(SlidingBoard _sb) {
         super(_sb);
         findSolution(_sb);
     }
+    
+    static final int INITIAL_DEPTH_LIMIT = 5;
+    static final int DEPTH_INCREMENT = 3;
 
     private void findSolution(SlidingBoard _sb) {
         memoryUsed = 0;
@@ -77,6 +80,37 @@ class DFSBot extends SlidingPlayer {
         countBacktracks = 0;
         currentMove = 0;
         correctMoves = null;
+        int depthLimit = INITIAL_DEPTH_LIMIT;
+        Node solvedNode = null;
+        while((solvedNode = findDFSSolution(_sb, depthLimit)) == null || !solvedNode.board.isSolved()) {
+            depthLimit += DEPTH_INCREMENT;
+        }
+        long moves = 1;
+        if(solvedNode != null && solvedNode.board.isSolved()) {
+            System.out.println("ID Solution depth: " + solvedNode.depth);
+            moves = solvedNode.depth;
+            correctMoves = new ArrayDeque<SlidingMove>();
+            while(solvedNode.move != null) {
+                correctMoves.push(solvedNode.move);
+                solvedNode = solvedNode.parent;
+            }
+        } else {
+            System.out.println("Failed to find a solution to the board.");
+        }
+        long endTime = System.nanoTime();
+        long duration = (endTime - startTime) / 1000000;
+        long bytesUsed = memoryUsed*((_sb.size*_sb.size)+3);
+        long bytesFreed = memoryFreed*((_sb.size*_sb.size)+3);
+        System.out.println("Backtracks: " + countBacktracks);
+        System.out.printf("Memory freed: %d nodes (~%d bytes)\n", memoryFreed, bytesFreed);
+        System.out.printf("Memory used (after freeing): %d nodes (~%d bytes)\n", memoryUsed, bytesUsed);
+        System.out.printf("Memory used per move decision: ~%f nodes (%f bytes)\n", ((float)memoryUsed)/moves, ((float)bytesUsed)/moves);
+        System.out.printf("Execution time: %dms\n", duration);
+        System.out.printf("Time per move decision: ~%dms\n", duration/moves);
+        System.out.println();
+    }
+
+    private Node findDFSSolution(SlidingBoard _sb, int depthLimit) {
         configsTried = new HashSet<String>();
         configsTried.add(_sb.toString());
         Node currentNode = new Node(_sb, 0, null, null);
@@ -85,31 +119,33 @@ class DFSBot extends SlidingPlayer {
             SlidingBoard board = currentNode.board;
             ArrayList<SlidingMove> legalMoves = board.getLegalMoves();
             Node nextNotVisitedChild = null;
-            for(SlidingMove move : legalMoves) {
-                // check if already has child node for this move
-                Node matchedChild = null;
-                for(Node child : currentNode.children) {
-                    if(child.move.row == move.row && child.move.col == move.col) {
-                        matchedChild = child;
-                        break;
+            if(currentNode.depth < depthLimit) {
+                for(SlidingMove move : legalMoves) {
+                    // check if already has child node for this move
+                    Node matchedChild = null;
+                    for(Node child : currentNode.children) {
+                        if(child.move.row == move.row && child.move.col == move.col) {
+                            matchedChild = child;
+                            break;
+                        }
                     }
+                    if(matchedChild != null) {
+                        // we've already checked this move
+                        continue;
+                    }
+                    // found the next move for which we should create a child node!
+                    SlidingBoard newBoard = new SlidingBoard(board);
+                    newBoard.doMove(move);
+                    // make sure not to repeat any board configurations
+                    if(configsTried.contains(newBoard.toString())) {
+                        continue;
+                    }
+                    configsTried.add(newBoard.toString());
+                    Node newNode = new Node(newBoard, currentNode.depth+1, currentNode, move);
+                    currentNode.children.add(newNode);
+                    nextNotVisitedChild = newNode;
+                    break;
                 }
-                if(matchedChild != null) {
-                    // we've already checked this move
-                    continue;
-                }
-                // found the next move for which we should create a child node!
-                SlidingBoard newBoard = new SlidingBoard(board);
-                newBoard.doMove(move);
-                // make sure not to repeat any board configurations
-                if(configsTried.contains(newBoard.toString())) {
-                    continue;
-                }
-                configsTried.add(newBoard.toString());
-                Node newNode = new Node(newBoard, currentNode.depth+1, currentNode, move);
-                currentNode.children.add(newNode);
-                nextNotVisitedChild = newNode;
-                break;
             }
             if(nextNotVisitedChild != null) {
                 // visit the next child that hasn't been visited
@@ -129,29 +165,7 @@ class DFSBot extends SlidingPlayer {
                 // System.out.println("Backtracked to depth " + currentNode.depth);
             }
         }
-        long moves = 1;
-        if(currentNode != null && currentNode.board.isSolved()) {
-            System.out.println("DFS Solution depth: " + currentNode.depth);
-            moves = currentNode.depth;
-            correctMoves = new ArrayDeque<SlidingMove>();
-            while(currentNode.move != null) {
-                correctMoves.push(currentNode.move);
-                currentNode = currentNode.parent;
-            }
-        } else {
-            System.out.println("Failed to find a solution to the board.");
-        }
-        long endTime = System.nanoTime();
-        long duration = (endTime - startTime) / 1000000;
-        long bytesUsed = memoryUsed*((_sb.size*_sb.size)+3);
-        long bytesFreed = memoryFreed*((_sb.size*_sb.size)+3);
-        System.out.println("Backtracks: " + countBacktracks);
-        System.out.printf("Memory freed: %d nodes (~%d bytes)\n", memoryFreed, bytesFreed);
-        System.out.printf("Memory used (after freeing): %d nodes (~%d bytes)\n", memoryUsed, bytesUsed);
-        System.out.printf("Memory used per move decision: ~%f nodes (%f bytes)\n", ((float)memoryUsed)/moves, ((float)bytesUsed)/moves);
-        System.out.printf("Execution time: %dms\n", duration);
-        System.out.printf("Time per move decision: ~%dms\n", duration/moves);
-        System.out.println();
+        return currentNode;
     }
     
     // Perform a single move based on the current given board state
