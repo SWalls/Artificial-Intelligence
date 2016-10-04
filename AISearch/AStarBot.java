@@ -106,7 +106,7 @@ class AStarBot extends SlidingPlayer {
         // main loop
         while(!q.isEmpty()) {
             Node currentNode = q.poll();
-            System.out.println("Searching at depth " + currentNode.depth);
+            // System.out.println("Searching at depth " + currentNode.depth);
             SlidingBoard board = currentNode.board;
             if(board.isSolved()) {
                 solvedNode = currentNode;

@@ -38,10 +38,32 @@ class DFSBot extends SlidingPlayer {
         ArrayList<Node> children = new ArrayList<Node>();
         boolean visited = false;
         public Node(SlidingBoard board, int depth, Node parent, SlidingMove move) {
+            DFSBot.memoryUsed++;
             this.board = board;
             this.depth = depth;
             this.parent = parent;
             this.move = move;
+        }
+        public boolean allChildrenVisited() {
+            boolean allVisited = true;
+            for(Node child : children) {
+                if(!child.visited) {
+                    allVisited = false;
+                    break;
+                }
+            }
+            return allVisited;
+        }
+        public void eraseReferences() {
+            DFSBot.memoryUsed--;
+            DFSBot.memoryFreed++;
+            parent = null;
+            move = null;
+            board = null;
+            for(Node child : children) {
+                child.eraseReferences();
+            }
+            children.clear();
         }
     }
     
@@ -49,6 +71,8 @@ class DFSBot extends SlidingPlayer {
     int currentMove;
     Deque<SlidingMove> correctMoves; // stack
     Set<String> configsTried;
+    static long memoryUsed;
+    static long memoryFreed;
 
     // The constructor gets the initial board
     public DFSBot(SlidingBoard _sb) {
@@ -57,7 +81,8 @@ class DFSBot extends SlidingPlayer {
     }
 
     private void findSolution(SlidingBoard _sb) {
-        long memory = 1;
+        memoryUsed = 0;
+        memoryFreed = 0;
         long startTime = System.nanoTime();
         countBacktracks = 0;
         currentMove = 0;
@@ -69,7 +94,21 @@ class DFSBot extends SlidingPlayer {
             // System.out.println("Searching at depth " + currentNode.depth);
             SlidingBoard board = currentNode.board;
             ArrayList<SlidingMove> legalMoves = board.getLegalMoves();
+            Node nextNotVisitedChild = null;
             for(SlidingMove move : legalMoves) {
+                // check if already has child node for this move
+                Node matchedChild = null;
+                for(Node child : currentNode.children) {
+                    if(child.move.row == move.row && child.move.col == move.col) {
+                        matchedChild = child;
+                        break;
+                    }
+                }
+                if(matchedChild != null) {
+                    // we've already checked this move
+                    continue;
+                }
+                // found the next move for which we should create a child node!
                 SlidingBoard newBoard = new SlidingBoard(board);
                 newBoard.doMove(move);
                 // make sure not to repeat any board configurations
@@ -77,16 +116,10 @@ class DFSBot extends SlidingPlayer {
                     continue;
                 }
                 configsTried.add(newBoard.toString());
-                memory++;
                 Node newNode = new Node(newBoard, currentNode.depth+1, currentNode, move);
                 currentNode.children.add(newNode);
-            }
-            Node nextNotVisitedChild = null;
-            for(Node child : currentNode.children) {
-                if(!child.visited) {
-                    nextNotVisitedChild = child;
-                    break;
-                }
+                nextNotVisitedChild = newNode;
+                break;
             }
             if(nextNotVisitedChild != null) {
                 // visit the next child that hasn't been visited
@@ -95,6 +128,11 @@ class DFSBot extends SlidingPlayer {
                 // we've visited all children. backtrack.
                 currentNode.visited = true;
                 while(currentNode != null && currentNode.visited) {
+                    // clear all children for garbage collection
+                    for(Node child : currentNode.children) {
+                        child.eraseReferences();
+                    }
+                    currentNode.children.clear();
                     currentNode = currentNode.parent;
                 }
                 countBacktracks++;
@@ -104,7 +142,6 @@ class DFSBot extends SlidingPlayer {
         long moves = 1;
         if(currentNode != null && currentNode.board.isSolved()) {
             System.out.println("DFS Solution depth: " + currentNode.depth);
-            System.out.println("Backtracks: " + countBacktracks);
             moves = currentNode.depth;
             correctMoves = new ArrayDeque<SlidingMove>();
             while(currentNode.move != null) {
@@ -116,9 +153,12 @@ class DFSBot extends SlidingPlayer {
         }
         long endTime = System.nanoTime();
         long duration = (endTime - startTime) / 1000000;
-        long bytes = memory*((_sb.size*_sb.size)+3);
-        System.out.printf("Memory used: %d nodes (~%d bytes)\n", memory, bytes);
-        System.out.printf("Memory used per move decision: ~%d nodes (%d bytes)\n", memory/moves, bytes/moves);
+        long bytesUsed = memoryUsed*((_sb.size*_sb.size)+3);
+        long bytesFreed = memoryFreed*((_sb.size*_sb.size)+3);
+        System.out.println("Backtracks: " + countBacktracks);
+        System.out.printf("Memory freed: %d nodes (~%d bytes)\n", memoryFreed, bytesFreed);
+        System.out.printf("Memory used (after freeing): %d nodes (~%d bytes)\n", memoryUsed, bytesUsed);
+        System.out.printf("Memory used per move decision: ~%f nodes (%f bytes)\n", ((float)memoryUsed)/moves, ((float)bytesUsed)/moves);
         System.out.printf("Execution time: %dms\n", duration);
         System.out.printf("Time per move decision: ~%dms\n", duration/moves);
         System.out.println();
@@ -126,6 +166,10 @@ class DFSBot extends SlidingPlayer {
     
     // Perform a single move based on the current given board state
     public SlidingMove makeMove(SlidingBoard board) {
+        if(correctMoves == null) {
+            System.out.println("ERROR: Cannot execute moves.");
+            System.exit(0);
+        }
         if(correctMoves.size() == 0)
             findSolution(board);
         return correctMoves.pop();

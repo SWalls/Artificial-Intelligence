@@ -45,7 +45,7 @@ class IDBot extends SlidingPlayer {
         }
     }
     
-    final int INITIAL_DEPTH = 20;
+    final int INITIAL_DEPTH = 5;
     final int DEPTH_INCREMENT = 3;
 
     int countBacktracks;
