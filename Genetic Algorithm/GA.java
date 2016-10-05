@@ -145,9 +145,11 @@ public class GA extends JComponent{
 
     // Adjust these parameters as necessary for your simulation
 	static final int POPULATION_SIZE = 50;
+	static final int POPULATION_BRANCHES = 3;
+	static final boolean USE_WEIGHTED_MUTATION = false;
     static final double MUTATION_RATE = 0.01;
-    static final double CROSSOVER_RATE = 0.7;
-    static final int MAX_POLYGON_POINTS = 4;
+    static final double CROSSOVER_RATE = 0.6;
+    static final int MAX_POLYGON_POINTS = 5;
     static final int MAX_POLYGONS = 10;
 	static final int MAX_EPOCHS = 10000;
 	static final int FITNESS_SAMPLE_SIZE = 100; // how many points to sample?
@@ -188,50 +190,55 @@ public class GA extends JComponent{
 
     public void runSimulation() {
 		currentEpoch = 0;
-		float populationFitness = 0;
-		while(((populationFitness = normalizeFitnesses()) != 0) && 
-				population[fittestIndex].getFitness() < 0.9f && 
+		while(normalizeFitnesses() && 
+				population[fittestIndex].getFitness() < 0.95f && 
 				currentEpoch < MAX_EPOCHS) {
 			crossoverCount = 0;
 			mutationCount = 0;
 			pickedFittestCount = 0;
-			GASolution[] newPopulation = new GASolution[POPULATION_SIZE];
-			Random rand = new Random();
-			// create new population
-			float maxFitness = 0;
-			float minFitness = Float.MAX_VALUE;
-			for(int i=0; i<POPULATION_SIZE; i++) {
-				float fitness = population[i].getFitness();
-				if(fitness > maxFitness)
-					maxFitness = fitness;
-				else if(fitness < minFitness)
-					minFitness = fitness;
-				float r = rand.nextFloat();
-				if(r <= CROSSOVER_RATE) {
-					// crossover
-					newPopulation[i] = newCrossover();
-				} else {
-					// just add the same individual
-					newPopulation[i] = population[i];
+			GASolution[] bestNextEpoch = null;
+			float maxPopulationFitness = 0;
+			for(int n=0; n<POPULATION_BRANCHES; n++) {
+				GASolution[] newPopulation = new GASolution[POPULATION_SIZE];
+				Random rand = new Random();
+				// create new population
+				float avgPopulationFitness = 0;
+				for(int i=0; i<POPULATION_SIZE; i++) {
+					float r = rand.nextFloat();
+					if(r <= CROSSOVER_RATE) {
+						// crossover
+						newPopulation[i] = newCrossover();
+					} else {
+						// just add the same individual
+						newPopulation[i] = deepCopy(population[i]);
+					}
+					avgPopulationFitness += newPopulation[i].getFitness();
+				}
+				avgPopulationFitness /= POPULATION_SIZE;
+				if(avgPopulationFitness > maxPopulationFitness) {
+					bestNextEpoch = newPopulation;
+					maxPopulationFitness = avgPopulationFitness;
 				}
 			}
 			if(currentEpoch % 10 == 0) {
-				float percentTimesFittestSelected = (((float)pickedFittestCount)/(crossoverCount*2))*100;
-				System.out.printf("Epoch %d => Avg Fitness: %.2f (StDev:%.2f), "+
-						"Crossovers: %d, Mutations: %d, Fittest Selection: %.1f%% (weight: %.1f%%)\n",
-						currentEpoch, populationFitness, maxFitness-minFitness, crossoverCount, mutationCount,
-						percentTimesFittestSelected, population[fittestIndex].getNormalizedFitness()*100);
+				// float percentTimesFittestSelected = (((float)pickedFittestCount)/(crossoverCount*2))*100;
+				System.out.printf("Epoch %d => Avg Fitness: %.2f, "+
+						"Crossovers: %d, Mutations: %d\n", //+ ", Fittest Selection: %.1f%% (weight: %.1f%%)\n",
+						currentEpoch, maxPopulationFitness,
+						crossoverCount/POPULATION_BRANCHES,
+						mutationCount/POPULATION_BRANCHES
+						//, percentTimesFittestSelected, population[fittestIndex].getNormalizedFitness()*100
+						);
 				canvas.setImage(population[fittestIndex]);
 				frame.repaint();
 			}
-			population = newPopulation;
+			population = bestNextEpoch;
 			currentEpoch++;
 		}
 		System.out.printf("Finished! Solution fitness: %f\n", population[fittestIndex].getFitness());
     }
 
-	// returns average un-normalized fitness
-	public float normalizeFitnesses() {
+	public boolean normalizeFitnesses() {
 		fittestIndex = 0;
 		// normalize fitnesses
 		float sumFitness = 0;
@@ -241,12 +248,11 @@ public class GA extends JComponent{
 				fittestIndex = i;
 			}
 		}
-		float unnormalizedAvgFitness = sumFitness / POPULATION_SIZE;
 		for(int i=0; i<POPULATION_SIZE; i++) {
 			float fitness = population[i].getFitness();
 			population[i].setNormalizedFitness(fitness/sumFitness);
 		}
-		return unnormalizedAvgFitness;
+		return true;
 	}
 
 	public GASolution getFitIndividual() {
@@ -297,7 +303,7 @@ public class GA extends JComponent{
 			MyPolygon p2 = s2Shapes.get(j);
 			Color color = p1.getColor();
 			float r = rand.nextFloat();
-			if(r <= weightedMutateRate) {
+			if(r <= (USE_WEIGHTED_MUTATION ? weightedMutateRate : MUTATION_RATE)) {
 				// randomly mutate the color!
 				mutationCount++;
 				color = new Color(rand.nextFloat(), rand.nextFloat(), rand.nextFloat());
@@ -317,7 +323,7 @@ public class GA extends JComponent{
 			while(!s1Iter.isDone() && !s2Iter.isDone() && ptIdx < s1Poly.npoints) {
 				float[] coords = new float[6];
 				r = rand.nextFloat();
-				if(r <= weightedMutateRate) {
+				if(r <= (USE_WEIGHTED_MUTATION ? weightedMutateRate : MUTATION_RATE)) {
 					// mutate this vertex!
 					mutationCount++;
 					coords[0] = rand.nextInt(width);
@@ -341,6 +347,30 @@ public class GA extends JComponent{
 			newSolution.addPolygon(myNewPoly);
 		}
 		newSolution.setFitness(calcFitness(newSolution));
+		return newSolution;
+	}
+
+	public GASolution deepCopy(GASolution solution) {
+		GASolution newSolution = new GASolution(solution.width, solution.height);
+		ArrayList<MyPolygon> shapes = solution.getShapes();
+		for(int j=0; j<MAX_POLYGONS; j++) {
+			MyPolygon myPoly = shapes.get(j);
+			Color color = myPoly.getColor();
+			Polygon poly = myPoly.getPolygon();
+			Polygon newPoly = new Polygon();
+			PathIterator iter = poly.getPathIterator(null);
+			int ptIdx = 0;
+			while(!iter.isDone() && ptIdx < poly.npoints) {
+				float[] coords = new float[6];
+				iter.currentSegment(coords);
+				newPoly.addPoint((int)coords[0], (int)coords[1]);
+				iter.next();
+				ptIdx++;
+			}
+			MyPolygon myNewPoly = new MyPolygon(newPoly, color);
+			newSolution.addPolygon(myNewPoly);
+		}
+		newSolution.setFitness(solution.getFitness());
 		return newSolution;
 	}
 
