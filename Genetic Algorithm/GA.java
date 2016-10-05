@@ -141,7 +141,6 @@ public class GA extends JComponent{
 	int currentEpoch = 0;
 	int crossoverCount = 0;
 	int mutationCount = 0;
-	int pickedFittestCount = 0;
 
     // Adjust these parameters as necessary for your simulation
 	static final int POPULATION_SIZE = 50;
@@ -195,7 +194,6 @@ public class GA extends JComponent{
 				currentEpoch < MAX_EPOCHS) {
 			crossoverCount = 0;
 			mutationCount = 0;
-			pickedFittestCount = 0;
 			GASolution[] bestNextEpoch = null;
 			float maxPopulationFitness = 0;
 			for(int n=0; n<POPULATION_BRANCHES; n++) {
@@ -221,14 +219,9 @@ public class GA extends JComponent{
 				}
 			}
 			if(currentEpoch % 10 == 0) {
-				// float percentTimesFittestSelected = (((float)pickedFittestCount)/(crossoverCount*2))*100;
-				System.out.printf("Epoch %d => Avg Fitness: %.2f, "+
-						"Crossovers: %d, Mutations: %d\n", //+ ", Fittest Selection: %.1f%% (weight: %.1f%%)\n",
-						currentEpoch, maxPopulationFitness,
-						crossoverCount/POPULATION_BRANCHES,
-						mutationCount/POPULATION_BRANCHES
-						//, percentTimesFittestSelected, population[fittestIndex].getNormalizedFitness()*100
-						);
+				System.out.printf("Epoch %d => Avg Fitness: %.2f, Crossovers: %d, Mutations: %d\n",
+						currentEpoch, maxPopulationFitness, crossoverCount/POPULATION_BRANCHES,
+						mutationCount/POPULATION_BRANCHES);
 				canvas.setImage(population[fittestIndex]);
 				frame.repaint();
 			}
@@ -270,13 +263,6 @@ public class GA extends JComponent{
 				System.out.printf("Sum: %f, r: %f\n", sum, r);
 			}
 			*/
-		}
-		if(i == fittestIndex) {
-			/*
-			System.out.printf("Picked fittest individual (weight: %f)\n", 
-				population[fittestIndex].getNormalizedFitness());
-				*/
-			pickedFittestCount++;
 		}
 		return population[i];
 	}
