@@ -7,7 +7,7 @@ import java.io.IOException;
 import javax.imageio.*;
 import java.util.ArrayList;
 import java.lang.InterruptedException;
-import java.util.Random;
+import java.util.*;
 
 // Each MyPolygon has a color and a Polygon object
 class MyPolygon {
@@ -40,6 +40,7 @@ class GASolution {
 	int width, height;
 
 	float fitness = 0;
+	float normalizedFitness = 0;
 
 	public GASolution(int _width, int _height) {
 		shapes = new ArrayList<MyPolygon>();
@@ -53,6 +54,14 @@ class GASolution {
 
 	public float getFitness() {
 		return fitness;
+	}
+
+	public void setNormalizedFitness(float _normalizedFitness) {
+		normalizedFitness = _normalizedFitness;
+	}
+
+	public float getNormalizedFitness() {
+		return normalizedFitness;
 	}
 
 	public void addPolygon(MyPolygon p) {
@@ -128,7 +137,7 @@ public class GA extends JComponent{
     GACanvas canvas;
     int width, height;
     BufferedImage realPicture;
-    ArrayList<GASolution> population;
+    GASolution[] population;
 	int fittestIndex = 0;
 	int currentEpoch = 0;
 	int crossoverCount = 0;
@@ -136,13 +145,12 @@ public class GA extends JComponent{
 
     // Adjust these parameters as necessary for your simulation
 	static final int POPULATION_SIZE = 50;
-    static final double MUTATION_RATE = 0.005;
-    static final double CROSSOVER_RATE = 0.8;
-    static final int MAX_POLYGON_POINTS = 4;
+    static final double MUTATION_RATE = 0.03;
+    static final double CROSSOVER_RATE = 0.6;
+    static final int MAX_POLYGON_POINTS = 5;
     static final int MAX_POLYGONS = 10;
 	static final int MAX_EPOCHS = 5000;
-	static final double MAX_FITNESS = Math.sqrt((255*255)*3);
-	static final int FITNESS_SAMPLE_SIZE = 100; // how many points to sample?
+	static final int FITNESS_SAMPLE_SIZE = 200; // how many points to sample?
 
     public GA(JFrame _frame, GACanvas _canvas, BufferedImage _realPicture) {
 		frame = _frame;
@@ -150,7 +158,7 @@ public class GA extends JComponent{
         realPicture = _realPicture;
         width = realPicture.getWidth();
         height = realPicture.getHeight();
-        population = new ArrayList<GASolution>(POPULATION_SIZE);
+        population = new GASolution[POPULATION_SIZE];
 
         // You'll need to define the following functions
         createPopulation(POPULATION_SIZE);	// Make new, random chromosomes
@@ -173,39 +181,40 @@ public class GA extends JComponent{
 				solution.addPolygon(poly);
 			}
 			solution.setFitness(calcFitness(solution));
-			population.add(solution);
+			population[i] = solution;
 		}
 	}
 
     public void runSimulation() {
 		currentEpoch = 0;
 		float populationFitness = 0;
-		while(population.get(fittestIndex).getFitness() < 0.9f && currentEpoch < MAX_EPOCHS) {
+		while(((populationFitness = normalizeFitnesses()) != 0) && 
+				population[fittestIndex].getFitness() < 0.9f && 
+				currentEpoch < MAX_EPOCHS) {
 			fittestIndex = 0;
 			crossoverCount = 0;
 			mutationCount = 0;
-			ArrayList<GASolution> newPopulation = new ArrayList<GASolution>(POPULATION_SIZE);
+			GASolution[] newPopulation = new GASolution[POPULATION_SIZE];
 			Random rand = new Random();
+			// create new population
 			for(int i=0; i<POPULATION_SIZE; i++) {
-				float r = rand.nextFloat();
-				GASolution solution = population.get(i);
-				populationFitness += solution.getFitness();
-				if(solution.getFitness() > population.get(fittestIndex).getFitness()) {
+				GASolution solution = population[i];
+				if(solution.getFitness() > population[fittestIndex].getFitness()) {
 					fittestIndex = i;
 				}
-				if(r <= CROSSOVER_RATE*solution.getFitness()) {
-					// possibly crossover
-					newPopulation.add(maybeCrossover(solution, i));
+				float r = rand.nextFloat();
+				if(r <= CROSSOVER_RATE) {
+					// crossover
+					newPopulation[i] = newCrossover();
 				} else {
-					// possibly mutate
-					newPopulation.add(maybeMutate(solution));
+					// just add the same individual
+					newPopulation[i] = solution;
 				}
 			}
-			populationFitness /= POPULATION_SIZE;
 			if(currentEpoch % 10 == 0) {
 				System.out.printf("Epoch %d => Avg Fitness: %f, Crossovers: %d, Mutations: %d\n",
 						currentEpoch, populationFitness, crossoverCount, mutationCount);
-				canvas.setImage(population.get(fittestIndex));
+				canvas.setImage(population[fittestIndex]);
 				frame.repaint();
 			}
 			population = newPopulation;
@@ -213,20 +222,45 @@ public class GA extends JComponent{
 		}
     }
 
-	public GASolution maybeCrossover(GASolution solution, int i) {
-		Random rand = new Random();
-		for(int j=0; j<POPULATION_SIZE; j++) {
-			if(j==i)
-				continue;
-			float r = rand.nextFloat();
-			GASolution otherSolution = population.get(j);
-			if(otherSolution.getFitness() > r*CROSSOVER_RATE) {
-				// crossover!
-				crossoverCount++;
-				return cross(solution, otherSolution);
-			}
+	// returns average un-normalized fitness
+	public float normalizeFitnesses() {
+		// normalize fitnesses
+		float sumFitness = 0;
+		for(int i=0; i<POPULATION_SIZE; i++) {
+			sumFitness += population[i].getFitness();
 		}
-		return solution;
+		float unnormalizedAvgFitness = sumFitness / POPULATION_SIZE;
+		for(int i=0; i<POPULATION_SIZE; i++) {
+			float fitness = population[i].getFitness();
+			population[i].setNormalizedFitness(fitness/sumFitness);
+		}
+		return unnormalizedAvgFitness;
+	}
+
+	public GASolution getFitIndividual() {
+		// spin wheel to randomly select individuals, so that fitter individuals
+		// have a higher chance of being selected
+		Random rand = new Random();
+		float r = rand.nextFloat();
+		float sum = 0;
+		int i = -1;
+		while(sum <= r) {
+			i++;
+			sum += population[i].getNormalizedFitness();
+			/*
+			if(i == POPULATION_SIZE-1) {
+				System.out.printf("Sum: %f, r: %f\n", sum, r);
+			}
+			*/
+		}
+		return population[i];
+	}
+
+	public GASolution newCrossover() {
+		crossoverCount++;
+		GASolution parent1 = getFitIndividual();
+		GASolution parent2 = getFitIndividual();
+		return cross(parent1, parent2);
 	}
 
 	public GASolution cross(GASolution s1, GASolution s2) {
@@ -239,9 +273,16 @@ public class GA extends JComponent{
 			MyPolygon p2 = s2Shapes.get(j);
 			Color color = p1.getColor();
 			float r = rand.nextFloat();
-			if(r <= 0.5f) {
-				// use the second soln's color!
-				color = s2Shapes.get(j).getColor();
+			if(r <= MUTATION_RATE) {
+				// randomly mutate the color!
+				mutationCount++;
+				color = new Color(rand.nextFloat(), rand.nextFloat(), rand.nextFloat());
+			} else {
+				r = rand.nextFloat();
+				if(r >= 0.5f) {
+					// use the second soln's color!
+					color = p2.getColor();
+				}
 			}
 			Polygon s1Poly = p1.getPolygon();
 			Polygon s2Poly = p2.getPolygon();
@@ -252,12 +293,20 @@ public class GA extends JComponent{
 			while(!s1Iter.isDone() && !s2Iter.isDone() && ptIdx < s1Poly.npoints) {
 				float[] coords = new float[6];
 				r = rand.nextFloat();
-				if(r <= 0.5f) {
-					// use the first soln's vertex!
-					s1Iter.currentSegment(coords);
+				if(r <= MUTATION_RATE) {
+					// mutate this vertex!
+					mutationCount++;
+					coords[0] = rand.nextInt(width);
+					coords[1] = rand.nextInt(height);
 				} else {
-					// use the second soln's vertex!
-					s2Iter.currentSegment(coords);
+					r = rand.nextFloat();
+					if(r <= 0.5f) {
+						// use the first soln's vertex!
+						s1Iter.currentSegment(coords);
+					} else {
+						// use the second soln's vertex!
+						s2Iter.currentSegment(coords);
+					}
 				}
 				newPoly.addPoint((int)coords[0], (int)coords[1]);
 				s1Iter.next();
@@ -271,66 +320,27 @@ public class GA extends JComponent{
 		return newSolution;
 	}
 
-	public GASolution maybeMutate(GASolution solution) {
-		GASolution newSolution = new GASolution(solution.width, solution.height);
-		Random rand = new Random();
-		ArrayList<MyPolygon> oldShapes = solution.getShapes();
-		for(int j=0; j<MAX_POLYGONS; j++) {
-			Color color = oldShapes.get(j).getColor();
-			float r = rand.nextFloat();
-			if(r <= MUTATION_RATE) {
-				// mutate this polygon's color!
-				mutationCount++;
-				color = new Color(rand.nextFloat(), rand.nextFloat(), rand.nextFloat());
-			}
-			Polygon oldPoly = oldShapes.get(j).getPolygon();
-			Polygon newPoly = new Polygon();
-			PathIterator iter = oldPoly.getPathIterator(null);
-			int ptIdx = 0;
-			while(!iter.isDone() && ptIdx < oldPoly.npoints) {
-				float[] coords = new float[6];
-				iter.currentSegment(coords);
-				r = rand.nextFloat();
-				if(r <= MUTATION_RATE) {
-					// mutate this vertex!
-					mutationCount++;
-					coords[0] = rand.nextInt(width);
-					coords[0] = rand.nextInt(height);
-				}
-				newPoly.addPoint((int)coords[0], (int)coords[1]);
-				iter.next();
-				ptIdx++;
-			}
-			MyPolygon myNewPoly = new MyPolygon(newPoly, color);
-			newSolution.addPolygon(myNewPoly);
-		}
-		newSolution.setFitness(calcFitness(newSolution));
-		return newSolution;
-	}
-
-	// percent (0.0 to 1.0) where 1.0 = perfect match
+	// value (0.0 to 1.0) where 1.0 = perfect match
 	public float calcFitness(GASolution solution) {
 		Random rand = new Random();
 		BufferedImage genPicture = solution.getImage();
-		float avgFitness = 0;
+		float avgDistance = 1;
 		for(int i=0; i<FITNESS_SAMPLE_SIZE; i++) {
 			int x = rand.nextInt(solution.width);
 			int y = rand.nextInt(solution.height);
 			Color a = new Color(realPicture.getRGB(x,y));
 			Color b = new Color(genPicture.getRGB(x,y));
 			// calculate euclidean distance
-			avgFitness += Math.sqrt(Math.pow(a.getRed() - b.getRed(), 2) +
+			avgDistance += Math.sqrt(Math.pow(a.getRed() - b.getRed(), 2) +
 								Math.pow(a.getBlue() - b.getBlue(), 2) +
 								Math.pow(a.getGreen() - b.getGreen(), 2));
 		}
-		avgFitness /= FITNESS_SAMPLE_SIZE;
-		return (float)(avgFitness / MAX_FITNESS);
+		avgDistance /= FITNESS_SAMPLE_SIZE;
+		return (float)(1 / avgDistance);
 	}
 
     public static void main(String[] args) throws IOException {
-
         String realPictureFilename = "test.jpg";
-
         BufferedImage realPicture = ImageIO.read(new File(realPictureFilename));
 
         JFrame frame = new JFrame();
@@ -342,7 +352,7 @@ public class GA extends JComponent{
         frame.setVisible(true);
 
         GA pt = new GA(frame, theCanvas, realPicture);
-            pt.runSimulation();
+		pt.runSimulation();
     }
 }
 

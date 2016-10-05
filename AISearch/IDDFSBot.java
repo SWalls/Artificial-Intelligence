@@ -71,7 +71,7 @@ class IDDFSBot extends SlidingPlayer {
     }
     
     static final int INITIAL_DEPTH_LIMIT = 5;
-    static final int DEPTH_INCREMENT = 3;
+    static final int DEPTH_INCREMENT = 1;
 
     private void findSolution(SlidingBoard _sb) {
         memoryUsed = 0;
