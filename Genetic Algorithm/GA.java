@@ -5,7 +5,6 @@ import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
 import javax.imageio.*;
-import java.util.ArrayList;
 import java.lang.InterruptedException;
 import java.util.*;
 
@@ -142,15 +141,17 @@ public class GA extends JComponent{
 	int currentEpoch = 0;
 	int crossoverCount = 0;
 	int mutationCount = 0;
+	int pickedFittestCount = 0;
 
     // Adjust these parameters as necessary for your simulation
 	static final int POPULATION_SIZE = 50;
-    static final double MUTATION_RATE = 0.03;
-    static final double CROSSOVER_RATE = 0.6;
-    static final int MAX_POLYGON_POINTS = 5;
+    static final double MUTATION_RATE = 0.01;
+    static final double CROSSOVER_RATE = 0.7;
+    static final int MAX_POLYGON_POINTS = 4;
     static final int MAX_POLYGONS = 10;
-	static final int MAX_EPOCHS = 5000;
-	static final int FITNESS_SAMPLE_SIZE = 200; // how many points to sample?
+	static final int MAX_EPOCHS = 10000;
+	static final int FITNESS_SAMPLE_SIZE = 100; // how many points to sample?
+	static final float MAX_DISTANCE = (float)Math.sqrt((255*255)*3);
 
     public GA(JFrame _frame, GACanvas _canvas, BufferedImage _realPicture) {
 		frame = _frame;
@@ -191,43 +192,54 @@ public class GA extends JComponent{
 		while(((populationFitness = normalizeFitnesses()) != 0) && 
 				population[fittestIndex].getFitness() < 0.9f && 
 				currentEpoch < MAX_EPOCHS) {
-			fittestIndex = 0;
 			crossoverCount = 0;
 			mutationCount = 0;
+			pickedFittestCount = 0;
 			GASolution[] newPopulation = new GASolution[POPULATION_SIZE];
 			Random rand = new Random();
 			// create new population
+			float maxFitness = 0;
+			float minFitness = Float.MAX_VALUE;
 			for(int i=0; i<POPULATION_SIZE; i++) {
-				GASolution solution = population[i];
-				if(solution.getFitness() > population[fittestIndex].getFitness()) {
-					fittestIndex = i;
-				}
+				float fitness = population[i].getFitness();
+				if(fitness > maxFitness)
+					maxFitness = fitness;
+				else if(fitness < minFitness)
+					minFitness = fitness;
 				float r = rand.nextFloat();
 				if(r <= CROSSOVER_RATE) {
 					// crossover
 					newPopulation[i] = newCrossover();
 				} else {
 					// just add the same individual
-					newPopulation[i] = solution;
+					newPopulation[i] = population[i];
 				}
 			}
 			if(currentEpoch % 10 == 0) {
-				System.out.printf("Epoch %d => Avg Fitness: %f, Crossovers: %d, Mutations: %d\n",
-						currentEpoch, populationFitness, crossoverCount, mutationCount);
+				float percentTimesFittestSelected = (((float)pickedFittestCount)/(crossoverCount*2))*100;
+				System.out.printf("Epoch %d => Avg Fitness: %.2f (StDev:%.2f), "+
+						"Crossovers: %d, Mutations: %d, Fittest Selection: %.1f%% (weight: %.1f%%)\n",
+						currentEpoch, populationFitness, maxFitness-minFitness, crossoverCount, mutationCount,
+						percentTimesFittestSelected, population[fittestIndex].getNormalizedFitness()*100);
 				canvas.setImage(population[fittestIndex]);
 				frame.repaint();
 			}
 			population = newPopulation;
 			currentEpoch++;
 		}
+		System.out.printf("Finished! Solution fitness: %f\n", population[fittestIndex].getFitness());
     }
 
 	// returns average un-normalized fitness
 	public float normalizeFitnesses() {
+		fittestIndex = 0;
 		// normalize fitnesses
 		float sumFitness = 0;
 		for(int i=0; i<POPULATION_SIZE; i++) {
 			sumFitness += population[i].getFitness();
+			if(population[i].getFitness() > population[fittestIndex].getFitness()) {
+				fittestIndex = i;
+			}
 		}
 		float unnormalizedAvgFitness = sumFitness / POPULATION_SIZE;
 		for(int i=0; i<POPULATION_SIZE; i++) {
@@ -244,7 +256,7 @@ public class GA extends JComponent{
 		float r = rand.nextFloat();
 		float sum = 0;
 		int i = -1;
-		while(sum <= r) {
+		while(sum <= r && i < POPULATION_SIZE) {
 			i++;
 			sum += population[i].getNormalizedFitness();
 			/*
@@ -252,6 +264,13 @@ public class GA extends JComponent{
 				System.out.printf("Sum: %f, r: %f\n", sum, r);
 			}
 			*/
+		}
+		if(i == fittestIndex) {
+			/*
+			System.out.printf("Picked fittest individual (weight: %f)\n", 
+				population[fittestIndex].getNormalizedFitness());
+				*/
+			pickedFittestCount++;
 		}
 		return population[i];
 	}
@@ -265,6 +284,11 @@ public class GA extends JComponent{
 
 	public GASolution cross(GASolution s1, GASolution s2) {
 		GASolution newSolution = new GASolution(s1.width, s1.height);
+		// calculate new mutation rate, so more fit solutions are less likely to mutate
+		float s1RelativeFitness = s1.getFitness()/population[fittestIndex].getFitness();
+		float s2RelativeFitness = s2.getFitness()/population[fittestIndex].getFitness();
+		float avgInverseFitness = (((1.0f/s1RelativeFitness)+(1.0f/s2RelativeFitness))/2);
+		double weightedMutateRate = MUTATION_RATE*avgInverseFitness;
 		Random rand = new Random();
 		ArrayList<MyPolygon> s1Shapes = s1.getShapes();
 		ArrayList<MyPolygon> s2Shapes = s2.getShapes();
@@ -273,13 +297,13 @@ public class GA extends JComponent{
 			MyPolygon p2 = s2Shapes.get(j);
 			Color color = p1.getColor();
 			float r = rand.nextFloat();
-			if(r <= MUTATION_RATE) {
+			if(r <= weightedMutateRate) {
 				// randomly mutate the color!
 				mutationCount++;
 				color = new Color(rand.nextFloat(), rand.nextFloat(), rand.nextFloat());
 			} else {
 				r = rand.nextFloat();
-				if(r >= 0.5f) {
+				if(r >= 0.5f*(s1.getFitness()/s2.getFitness())) {
 					// use the second soln's color!
 					color = p2.getColor();
 				}
@@ -293,14 +317,14 @@ public class GA extends JComponent{
 			while(!s1Iter.isDone() && !s2Iter.isDone() && ptIdx < s1Poly.npoints) {
 				float[] coords = new float[6];
 				r = rand.nextFloat();
-				if(r <= MUTATION_RATE) {
+				if(r <= weightedMutateRate) {
 					// mutate this vertex!
 					mutationCount++;
 					coords[0] = rand.nextInt(width);
 					coords[1] = rand.nextInt(height);
 				} else {
 					r = rand.nextFloat();
-					if(r <= 0.5f) {
+					if(r <= 0.5f*(s1.getFitness()/s2.getFitness())) {
 						// use the first soln's vertex!
 						s1Iter.currentSegment(coords);
 					} else {
@@ -324,19 +348,20 @@ public class GA extends JComponent{
 	public float calcFitness(GASolution solution) {
 		Random rand = new Random();
 		BufferedImage genPicture = solution.getImage();
-		float avgDistance = 1;
+		float avgDistance = 0;
 		for(int i=0; i<FITNESS_SAMPLE_SIZE; i++) {
 			int x = rand.nextInt(solution.width);
 			int y = rand.nextInt(solution.height);
 			Color a = new Color(realPicture.getRGB(x,y));
 			Color b = new Color(genPicture.getRGB(x,y));
 			// calculate euclidean distance
-			avgDistance += Math.sqrt(Math.pow(a.getRed() - b.getRed(), 2) +
-								Math.pow(a.getBlue() - b.getBlue(), 2) +
-								Math.pow(a.getGreen() - b.getGreen(), 2));
+			float distance = (float) Math.sqrt(Math.pow(a.getRed() - b.getRed(), 2) +
+										Math.pow(a.getBlue() - b.getBlue(), 2) +
+										Math.pow(a.getGreen() - b.getGreen(), 2));
+			avgDistance += (distance / MAX_DISTANCE);
 		}
 		avgDistance /= FITNESS_SAMPLE_SIZE;
-		return (float)(1 / avgDistance);
+		return (1 - avgDistance);
 	}
 
     public static void main(String[] args) throws IOException {
