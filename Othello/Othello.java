@@ -134,6 +134,15 @@ class OthelloBoard {
         board[row+1][col] = 1;
         
     }
+
+    public OthelloBoard(OthelloBoard boardToCopy) {
+        this(boardToCopy.size, false);
+        for(int row=0; row<size; row++) {
+            for(int col=0; col<size; col++) {
+                board[row][col] = boardToCopy.board[row][col];
+            }
+        }
+    }
     
     public void repaint() {
         viewer.repaint();
