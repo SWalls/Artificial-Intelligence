@@ -105,8 +105,8 @@ class OthelloBoard {
     public int[][] board = null;
     JFrame viewer = null;
     
-    public static final int WIDTH = 800;
-    public static final int HEIGHT = 800;
+    public static final int WIDTH = 400;
+    public static final int HEIGHT = 400;
     
     public static final int BLACK = 1;
     public static final int WHITE = 2;
@@ -142,6 +142,24 @@ class OthelloBoard {
                 board[row][col] = boardToCopy.board[row][col];
             }
         }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (!OthelloBoard.class.isAssignableFrom(obj.getClass())) {
+            return false;
+        }
+        final OthelloBoard otherBoard = (OthelloBoard) obj;
+        for(int row=0; row<size; row++) {
+            for(int col=0; col<size; col++) {
+                if(board[row][col] != otherBoard.board[row][col])
+                    return false;
+            }
+        }
+        return true;
     }
     
     public void repaint() {
