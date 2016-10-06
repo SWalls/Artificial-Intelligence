@@ -45,7 +45,7 @@ class OthelloPlayer {
     /*
      *override this method! :P
      */
-    public OthelloMove makeMove(OthelloBoard board) {
+    public OthelloMove makeMove(OthelloBoard board, int move) {
         //Move m = new Move(0, 0, BLACK)
         //board.addPiece(m);
         return null;
@@ -499,7 +499,7 @@ class OthelloGame {
 
                 //System.out.println("move #" + i);
                 //System.out.println("  has legal move");
-                OthelloMove m = players[i%2].makeMove(ob);
+                OthelloMove m = players[i%2].makeMove(ob, i);
                 if (ob.isLegalMove(m)) {
                     ob.addPiece(m);
                 }

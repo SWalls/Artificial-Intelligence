@@ -26,7 +26,7 @@ public class GreedyBot extends OthelloPlayer {
         }
     }
     
-    public OthelloMove makeMove(OthelloBoard b) {
+    public OthelloMove makeMove(OthelloBoard b, int move) {
         
         //System.out.println(b);
         

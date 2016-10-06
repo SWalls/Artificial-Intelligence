@@ -43,7 +43,7 @@ public class RandomBot extends OthelloPlayer {
         super(_color);
     }
     
-    public OthelloMove makeMove(OthelloBoard board) {
+    public OthelloMove makeMove(OthelloBoard board, int move) {
         
         ArrayList<OthelloMove> moves = board.legalMoves(playerColor);
         
