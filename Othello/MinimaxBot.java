@@ -2,19 +2,22 @@ import java.util.*;
 
 class Metrics {
     static long startTime;
-    static int nodesTraversed;
-    static int maxDepthTraversed;
+    static int nodesCount;
+    static int maxDepth;
+    static int endGameNodesCount;
     public static void reset() {
-        nodesTraversed = 0;
-        maxDepthTraversed = 0;
         startTime = System.nanoTime();
+        nodesCount = 0;
+        maxDepth = 0;
+        endGameNodesCount = 0;
     }
     public static void print() {
         long endTime = System.nanoTime();
         long durationMs = (endTime - startTime) / 1000000;
-        System.out.printf("Decision time: %dms, ", durationMs);
-        System.out.printf("Nodes traversed: %d, ", nodesTraversed);
-        System.out.printf("Max depth: %d ", maxDepthTraversed);
+        System.out.printf("Time: %dms, ", durationMs);
+        System.out.printf("Nodes: %d, ", nodesCount);
+        System.out.printf("Max Depth: %d, ", maxDepth);
+        System.out.printf("EGNs Found: %d ", endGameNodesCount);
         System.out.println();
     }
 }
@@ -95,22 +98,21 @@ public class MinimaxBot extends OthelloPlayer {
     static final int INITIAL_DEPTH_LIMIT = 3;
     static final int DEPTH_INCREMENT = 2;
 
-    int currentMove = 0;
+    int currentMove;
     int depthLimit = INITIAL_DEPTH_LIMIT;
     Node previousMove = null;
-    Queue<Node> q = new LinkedList<Node>();
+    Queue<Node> q;
     int alpha;
     int beta;
     Timer timer = new Timer(0.9f);
     
     public MinimaxBot(Integer _color) {
         super(_color);
-        if(playerColor == OthelloBoard.WHITE)
-            currentMove = 1;
     }
     
     public OthelloMove makeMove(OthelloBoard board) {
         Metrics.reset();
+        timer.start();
         if(playerColor == OthelloBoard.BLACK) {
             alpha = -Integer.MAX_VALUE;
             beta = Integer.MAX_VALUE;
@@ -118,8 +120,15 @@ public class MinimaxBot extends OthelloPlayer {
             alpha = Integer.MAX_VALUE;
             beta = -Integer.MAX_VALUE;
         }
+        // see if we should reset currentMove
+        if(board.isStartGrid()) {
+            if(playerColor == OthelloBoard.WHITE)
+                currentMove = 1;
+            else
+                currentMove = 0;
+        }
         depthLimit = INITIAL_DEPTH_LIMIT;
-        timer.start();
+        q = new LinkedList<Node>();
         Node root = null;
         if(previousMove != null) {
             // find root as child of previousMove
@@ -132,7 +141,6 @@ public class MinimaxBot extends OthelloPlayer {
         }
         if(root == null) {
             root = new Node(board, null, currentMove);
-            q = new LinkedList<Node>();
             /*
             if(currentMove > 0)
                 System.out.printf("Failed to find board in children for move %d\n", currentMove);
@@ -155,8 +163,7 @@ public class MinimaxBot extends OthelloPlayer {
                 bestChild = child;
             }
         }
-        System.out.printf("Added %s piece to (%d,%d) => ", 
-            playerColor == OthelloBoard.BLACK ? "BLACK" : "WHITE",
+        System.out.printf("Move %d (%d,%d) => ", currentMove,
             bestChild.move.row, bestChild.move.col);
         Metrics.print();
         currentMove+=2;
@@ -171,6 +178,7 @@ public class MinimaxBot extends OthelloPlayer {
         }
         if(root.board.gameOver()) {
             // found end-game node!
+            Metrics.endGameNodesCount++;
             if(root.board.getBoardScore() > 0) {
                 // black wins!
                 root.score = Integer.MAX_VALUE;
@@ -179,7 +187,11 @@ public class MinimaxBot extends OthelloPlayer {
                 root.score = -Integer.MAX_VALUE;
             } else {
                 // draw!
-                root.score = 0;
+                if(playerColor == OthelloBoard.BLACK) {
+                    root.score = -Integer.MAX_VALUE;
+                } else {
+                    root.score = Integer.MAX_VALUE;
+                }
             }
             return;
         }
@@ -190,9 +202,9 @@ public class MinimaxBot extends OthelloPlayer {
             q.offer(root);
             return;
         }
-        Metrics.nodesTraversed++;
-        if(root.depth > Metrics.maxDepthTraversed)
-            Metrics.maxDepthTraversed = root.depth;
+        Metrics.nodesCount++;
+        if(root.depth > Metrics.maxDepth)
+            Metrics.maxDepth = root.depth;
         // continue searching down child nodes
         ArrayList<OthelloMove> moves = root.board.legalMoves(
             root.depth % 2 == 0 ? OthelloBoard.BLACK : OthelloBoard.WHITE);

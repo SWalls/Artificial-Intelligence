@@ -144,6 +144,30 @@ class OthelloBoard {
         }
     }
 
+    public boolean isStartGrid() {
+        int midRow = size / 2 - 1;
+        int midCol = size / 2 - 1;
+        for(int row=0; row<size; row++) {
+            for(int col=0; col<size; col++) {
+                int expect = 0;
+                if(row == midRow) {
+                    if(col == midCol)
+                        expect = 2;
+                    else if(col == midCol+1)
+                        expect = 1;
+                } else if(row == midRow+1) {
+                    if(col == midCol)
+                        expect = 1;
+                    else if(col == midCol+1)
+                        expect = 2;
+                }
+                if(board[row][col] != expect)
+                    return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj == null) {
