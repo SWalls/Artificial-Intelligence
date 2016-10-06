@@ -155,12 +155,10 @@ public class MinimaxBot extends OthelloPlayer {
                 bestChild = child;
             }
         }
-        /*
         System.out.printf("Added %s piece to (%d,%d) => ", 
             playerColor == OthelloBoard.BLACK ? "BLACK" : "WHITE",
             bestChild.move.row, bestChild.move.col);
         Metrics.print();
-        */
         currentMove+=2;
         previousMove = bestChild;
         return bestChild.move;
@@ -219,29 +217,29 @@ public class MinimaxBot extends OthelloPlayer {
                 root.addChild(newNode);
             }
             dfs(newNode);
-            /*
             // check alpha, beta for pruning
-            if(playerColor == OthelloBoard.BLACK) {
-                if(newNode.score > alpha)
-                    alpha = newNode.score;
-                else if(newNode.score < beta)
-                    beta = newNode.score;
-            } else {
-                if(newNode.score < alpha)
-                    alpha = newNode.score;
-                else if(newNode.score > beta)
-                    beta = newNode.score;
+            if(root.depth == currentMove) {
+                if(playerColor == OthelloBoard.BLACK) {
+                    if(newNode.score > alpha)
+                        alpha = newNode.score;
+                    else if(newNode.score < beta)
+                        beta = newNode.score;
+                } else {
+                    if(newNode.score < alpha)
+                        alpha = newNode.score;
+                    else if(newNode.score > beta)
+                        beta = newNode.score;
+                }
+                if((playerColor == OthelloBoard.BLACK && alpha > beta) ||
+                    (playerColor == OthelloBoard.WHITE && alpha < beta)) {
+                    // prune. stop searching through children.
+                    alpha = beta;
+                    root.score = newNode.score;
+                    root.visited = true;
+                    // System.out.println("Pruning!");
+                    return;
+                }
             }
-            if((playerColor == OthelloBoard.BLACK && alpha > beta) ||
-                (playerColor == OthelloBoard.WHITE && alpha < beta)) {
-                // prune. stop searching through children.
-                alpha = beta;
-                root.score = newNode.score;
-                root.visited = true;
-                // System.out.println("Pruning!");
-                return;
-            }
-            */
         }
         root.visited = true;
         // back-propogate scores
