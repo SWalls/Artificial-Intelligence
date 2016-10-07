@@ -2,15 +2,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 np.random.seed(42) # Get the same random numbers every time
 
+class LinearRegression:
+    weight = np.random.rand(1)
+    bias = np.random.rand(1)
+    variables = []
+    data = []
 
-# Ugly code for thinking about linear regression with gradient descent
-
-################################################################
-### Load the dataset
-my_data = np.genfromtxt('gpa.csv', delimiter=';', skip_header=1)[:10]
-hs_gpa = my_data[:, 0]
-col_gpa = my_data[:, 1]
-
+    def __init__(self, csvFile, variableCols):
+        ### Load the dataset
+        self.data = np.genfromtxt('dija_temp.csv', delimiter=',', skip_header=1)[:10]
+        for col in variableCols:
+            variables.append(data[:, col])
+        
 
 
 ################################################################
