@@ -2,28 +2,28 @@ import matplotlib.pyplot as plt
 import numpy as np
 np.random.seed(42)
 
-class Layer(object):
+class NetworkLayer(object):
 
     def __init__(self, size, next_layer_size, learning_rate):
         self.size = size
         self.weights = np.random.rand(size, next_layer_size)
         self.learning_rate = learning_rate
 
-    def thresholdFunction(x):
+    def thresholdFunction(self, x):
         return x
 
-    def thresholdFunctionDeriv(x):
+    def thresholdFunctionDeriv(self, x):
         return x
 
     def forward(self, X):
         self.incoming = X
         act = X.dot(self.weights)
-        act = sigmoid(act)
+        act = self.thresholdFunction(act)
         self.outputs = act
         return act
 
     def backward(self, err):
-        err = err * dsigmoid(self.outputs)
+        err = err * self.thresholdFunctionDeriv(self.outputs)
         update = self.incoming.T.dot(err)
         self.weights += self.learning_rate * update
         return update
@@ -41,59 +41,57 @@ class Layer(object):
     def calculateError(self, y, pred):
         return (np.sum(np.power((y - pred), 2)))
 
-class SigmoidLayer(Layer):
+class SigmoidNetworkLayer(NetworkLayer):
 
-    def thresholdFunction(x):
+    def thresholdFunction(self, x):
         return 1 / (1 + np.exp(-x))
 
-    def thresholdFunctionDeriv(x):
+    def thresholdFunctionDeriv(self, x):
         return x * (1 - x)
 
-class Perceptron:
+class NeuralNetwork:
 
-    def __init__(self, size, learning_rate=0.1):
-        self.size = size
-        self.weights = np.random.rand(size)
-        self.learning_rate = learning_rate
-
-    def propForward(self, X):
-        self.incoming = X
-        act = X.dot(self.weights)
-        act = sigmoid(act)
-        self.outputs = act
-        return act
-
-    def propBackward(self, err):
-        err = err * dsigmoid(self.outputs)
-        update = self.incoming.T.dot(err)
-        self.weights += self.learning_rate * update
-        return update
-
-    def reportAccuracy(self, X, y):
-        out = self.forward(X)
-        out = np.round(out)
-        count = np.count_nonzero(y - out)
-        correct = len(X) - count
-        print "%.4f" % (float(correct)*100.0 / len(X))
-
-    def calculateDerivError(self, y, pred):
-        return 2*(y - pred)
-
-    def calculateError(self, y, pred):
-        return (np.sum(np.power((y - pred), 2)))
+    def __init__(self, layer_sizes, learning_rate):
+        self.layers = []
+        nextLayerSize = 1
+        for i in range(len(layer_sizes)-1, -1, -1):
+            self.layers.insert(0, SigmoidNetworkLayer(layer_sizes[i], nextLayerSize, learning_rate))
+            nextLayerSize = layer_sizes[i]
 
     def iteration(self, X, y):
-        out = self.forward(X)
-        err = self.calculateError(y, out)
-        # print err
-        deriv_err = self.calculateDerivError(y, out)
-        self.backward(deriv_err)
+        incoming = X
+        for layer in self.layers:
+            out = layer.forward(incoming)
+            incoming = out
+        err = self.layers[-1].calculateError(y, incoming)
+        print err
+        deriv_err = self.layers[-1].calculateDerivError(y, incoming)
+        for layer in self.layers:
+            layer.backward(deriv_err)
 
-    def train(self, X, y, number_epochs):
-        for i in range(number_epochs):
+    def train(self, X, y, epochs):
+        for i in range(0, epochs):
             self.iteration(X, y)
-            self.reportAccuracy(X, y)
 
+    def gradientChecker(model, X, y):
+        epsilon = 1E-5
+
+        model.weights[1] += epsilon
+        out1 = model.forward(X)
+        err1 = model.calculateError(y, out1)
+
+        model.weights[1] -= 2*epsilon
+        out2 = model.forward(X)
+        err2 = model.calculateError(y, out2)
+
+        numeric = (err2 - err1) / (2*epsilon)
+        print numeric
+
+        model.weights[1] += epsilon
+        out3 = model.forward(X)
+        err3 = model.calculateDerivError(y, out3)
+        derivs = model.backward(err3)
+        print derivs[1]
 
 def loadDataset(filename='breast_cancer.csv'):
     my_data = np.genfromtxt(filename, delimiter=',', skip_header=1)
@@ -111,37 +109,12 @@ def loadDataset(filename='breast_cancer.csv'):
 
     return X_norm, y
 
-
-
-def gradientChecker(model, X, y):
-    epsilon = 1E-5
-
-    model.weights[1] += epsilon
-    out1 = model.forward(X)
-    err1 = model.calculateError(y, out1)
-
-    model.weights[1] -= 2*epsilon
-    out2 = model.forward(X)
-    err2 = model.calculateError(y, out2)
-
-    numeric = (err2 - err1) / (2*epsilon)
-    print numeric
-
-    model.weights[1] += epsilon
-    out3 = model.forward(X)
-    err3 = model.calculateDerivError(y, out3)
-    derivs = model.backward(err3)
-    print derivs[1]
-
-
-
-
 if __name__=="__main__":
     X, y = loadDataset()
     # X = X
     print X
     print y
     print X.shape, y.shape
-    model = Perceptron(10, 0.05)
-    gradientChecker(model, X, y)
+    model = NeuralNetwork([10], 0.05)
+    # gradientChecker(model, X, y)
     model.train(X, y, 100)
