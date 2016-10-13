@@ -143,7 +143,7 @@ def loadDataset(filename='breast_cancer.csv', rows=0):
 
 if __name__=="__main__":
     np.set_printoptions(precision=2)
-    X, y = loadDataset('breast_cancer.csv', 50)
+    X, y = loadDataset()
     print "\nX-norm:"
     print X
     print "\nY:"
@@ -155,4 +155,4 @@ if __name__=="__main__":
     model.addLayer(DenseNetworkLayer(9,1,0.01))
     model.addLayer(SigmoidNetworkLayer())
     model.checkGradient(X, y)
-    model.train(X, y, 10)
+    model.train(X, y, 1000)
