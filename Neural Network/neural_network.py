@@ -57,8 +57,6 @@ class NeuralNetwork:
         incoming = X
         for i in range(0, len(self.layers)):
             incoming = self.layers[i].forward(incoming)
-        # calculate error (now, incoming = final output prediction)
-        # err = self.layers[-1].calculateError(y, incoming)
         return incoming
 
     def propogateBackward(self, err):
@@ -67,8 +65,6 @@ class NeuralNetwork:
         outgoing = err
         for i in range(len(self.layers)-1, -1, -1):
             outgoing = self.layers[i].backward(outgoing)
-        # calculate error (now, incoming = final output prediction)
-        # err = self.layers[-1].calculateError(y, incoming)
         return outgoing
 
     def iteration(self, i, X, y):
