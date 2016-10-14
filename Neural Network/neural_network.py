@@ -69,6 +69,7 @@ class NeuralNetwork:
 
     def iteration(self, i, X, y):
         pred = self.propogateForward(X)
+        # print "Error: %.4f" % self.calculateError(y, pred)
         deriv_err = self.calculateDerivError(y, pred)
         change = self.propogateBackward(deriv_err)
         self.reportAccuracy(i, y, pred)
@@ -150,9 +151,13 @@ if __name__=="__main__":
     print y
     print "\nX-shape: %s, Y-shape: %s" % (X.shape, y.shape)
     model = NeuralNetwork()
-    model.addLayer(DenseNetworkLayer(9,9,0.01))
+    model.addLayer(DenseNetworkLayer(9,9,0.001))
     model.addLayer(SigmoidNetworkLayer())
-    model.addLayer(DenseNetworkLayer(9,1,0.01))
+    # model.addLayer(DenseNetworkLayer(9,9,0.001))
+    # model.addLayer(SigmoidNetworkLayer())
+    model.addLayer(DenseNetworkLayer(9,1,0.001))
     model.addLayer(SigmoidNetworkLayer())
     model.checkGradient(X, y)
     model.train(X, y, 1000)
+
+# keres
