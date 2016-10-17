@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from math import floor
 np.random.seed(42)
         
 def sigmoid(x):
@@ -16,9 +17,14 @@ class NetworkLayer(object):
     def backward(self, err):
         return err
 
+    def reset(self):
+        return
+
 class DenseNetworkLayer(NetworkLayer):
 
     def __init__(self, size, next_layer_size, learning_rate):
+        self.size = size
+        self.next_layer_size = next_layer_size
         self.weights = np.random.rand(size, next_layer_size)
         self.learning_rate = learning_rate
 
@@ -32,6 +38,9 @@ class DenseNetworkLayer(NetworkLayer):
         corrected = err.dot(self.weights.T)
         self.weights += self.learning_rate * update
         return corrected
+
+    def reset(self):
+        self.weights = np.random.rand(self.size, self.next_layer_size)
 
 class SigmoidNetworkLayer(NetworkLayer):
 
@@ -48,6 +57,10 @@ class NeuralNetwork:
 
     def __init__(self):
         self.layers = []
+
+    def reset(self):
+        for layer in self.layers:
+            layer.reset()
     
     def addLayer(self, layer):
         self.layers.append(layer)
@@ -72,7 +85,7 @@ class NeuralNetwork:
         # print "Error: %.4f" % self.calculateError(y, pred)
         deriv_err = self.calculateDerivError(y, pred)
         change = self.propogateBackward(deriv_err)
-        self.reportAccuracy(i, y, pred)
+        # self.reportAccuracy(i, y, pred)
         return change
 
     def reportAccuracy(self, i, y, pred):
@@ -158,6 +171,15 @@ if __name__=="__main__":
     model.addLayer(DenseNetworkLayer(9,1,0.001))
     model.addLayer(SigmoidNetworkLayer())
     model.checkGradient(X, y)
-    model.train(X, y, 1000)
-
-# keres
+    # do k-fold test
+    k = 10
+    inc = int(floor(len(X) / k))
+    for i in range(0, k):
+        model.reset()
+        # train ANN on k-1 equally sized subsets of the data
+        for j in range(0, k-1):
+            if j != i:
+                model.train(X[j*inc:(j+1)*inc], y[j*inc:(j+1)*inc], 1000)
+        # test the ANN's performance on the held out subset
+        pred = model.propogateForward(X[i*inc:(i+1)*inc])
+        model.reportAccuracy(0, y[i*inc:(i+1)*inc], pred)
