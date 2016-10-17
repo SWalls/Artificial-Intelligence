@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from math import floor
-np.random.seed(42)
+# np.random.seed(42)
         
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -85,14 +85,14 @@ class NeuralNetwork:
         # print "Error: %.4f" % self.calculateError(y, pred)
         deriv_err = self.calculateDerivError(y, pred)
         change = self.propogateBackward(deriv_err)
-        # self.reportAccuracy(i, y, pred)
+        # self.reportAccuracy("Epoch %d:" % i, y, pred)
         return change
 
     def reportAccuracy(self, i, y, pred):
         pred = np.round(pred)
         count = np.count_nonzero(y - pred)
         correct = len(pred) - count
-        print "Epoch %d: %.4f%% correct" % (i, float(correct)*100.0 / len(pred))
+        print "%s %.4f%% correct" % (i, float(correct)*100.0 / len(pred))
 
     def calculateDerivError(self, y, pred):
         return 2*(y - pred)
@@ -122,7 +122,7 @@ class NeuralNetwork:
         err2 = self.calculateError(y, pred2)
 
         ### Calculate midpoint of errors
-        print err1, err2
+        # print err1, err2
         numeric = (err2 - err1) / (2*epsilon)
         print "Error midpoint: %f" % numeric
 
@@ -158,10 +158,10 @@ def loadDataset(filename='breast_cancer.csv', rows=0):
 if __name__=="__main__":
     np.set_printoptions(precision=2)
     X, y = loadDataset()
-    print "\nX-norm:"
-    print X
-    print "\nY:"
-    print y
+    # print "\nX-norm:"
+    # print X
+    # print "\nY:"
+    # print y
     print "\nX-shape: %s, Y-shape: %s" % (X.shape, y.shape)
     model = NeuralNetwork()
     model.addLayer(DenseNetworkLayer(9,9,0.001))
@@ -182,4 +182,4 @@ if __name__=="__main__":
                 model.train(X[j*inc:(j+1)*inc], y[j*inc:(j+1)*inc], 1000)
         # test the ANN's performance on the held out subset
         pred = model.propogateForward(X[i*inc:(i+1)*inc])
-        model.reportAccuracy(0, y[i*inc:(i+1)*inc], pred)
+        model.reportAccuracy("k=%d:" % i, y[i*inc:(i+1)*inc], pred)
