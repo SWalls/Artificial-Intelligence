@@ -34,9 +34,9 @@ class DenseNetworkLayer(NetworkLayer):
         return act
 
     def backward(self, err):
-        update = self.incoming.T.dot(err)
+        self.update = self.incoming.T.dot(err)
         corrected = err.dot(self.weights.T)
-        self.weights += self.learning_rate * update
+        self.weights += self.learning_rate * self.update
         return corrected
 
     def reset(self):
@@ -78,7 +78,7 @@ class NeuralNetwork:
         outgoing = err
         for i in range(len(self.layers)-1, -1, -1):
             outgoing = self.layers[i].backward(outgoing)
-        return outgoing
+        return self.layers[0].update
 
     def iteration(self, i, X, y):
         pred = self.propogateForward(X)
@@ -122,7 +122,7 @@ class NeuralNetwork:
         err2 = self.calculateError(y, pred2)
 
         ### Calculate midpoint of errors
-        # print err1, err2
+        print err1, err2
         numeric = (err2 - err1) / (2*epsilon)
         print "Error midpoint: %f" % numeric
 
@@ -166,8 +166,6 @@ if __name__=="__main__":
     model = NeuralNetwork()
     model.addLayer(DenseNetworkLayer(9,9,0.001))
     model.addLayer(SigmoidNetworkLayer())
-    # model.addLayer(DenseNetworkLayer(9,9,0.001))
-    # model.addLayer(SigmoidNetworkLayer())
     model.addLayer(DenseNetworkLayer(9,1,0.001))
     model.addLayer(SigmoidNetworkLayer())
     model.checkGradient(X, y)
@@ -182,4 +180,4 @@ if __name__=="__main__":
                 model.train(X[j*inc:(j+1)*inc], y[j*inc:(j+1)*inc], 1000)
         # test the ANN's performance on the held out subset
         pred = model.propogateForward(X[i*inc:(i+1)*inc])
-        model.reportAccuracy("k=%d:" % i, y[i*inc:(i+1)*inc], pred)
+        model.reportAccuracy("k not include %d:" % i, y[i*inc:(i+1)*inc], pred)
