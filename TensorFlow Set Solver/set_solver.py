@@ -7,6 +7,9 @@ import numpy as np
 import tensorflow as tf
 tf.python.control_flow_ops = tf
 
+def normalize(X):
+        X = X/255.
+
 class CardRecognitionNN:
 
     def __init__(self, db):
@@ -16,18 +19,18 @@ class CardRecognitionNN:
         model = Sequential()
 
         # First convolutional layer
-        model.add(Convolution2D(32, 5, 5, border_mode='valid', input_shape=(40, 30, 3)))
+        model.add(Convolution2D(32, 3, 3, border_mode='valid', input_shape=(3, 40, 30)))
         model.add(Activation('relu'))
         # model.add(MaxPooling2D(pool_size=(2, 2)))
 
         # Second convolutional layer
-        model.add(Convolution2D(64, 5, 5))
+        model.add(Convolution2D(64, 3, 3))
         model.add(Activation('relu'))
         # model.add(MaxPooling2D(pool_size=(2, 2)))
 
         model.add(Flatten())
-        model.add(Dense(1024))
-        model.add(Activation('relu'))
+        # model.add(Dense(1024))
+        # model.add(Activation('relu'))
         model.add(Dropout(0.5))
 
         model.add(Dense(9))
@@ -46,13 +49,9 @@ class CardRecognitionNN:
         print "label = %d," % label,
         print "description =",
         print CardDatabase.get_description(label)
-        image_arr = X[idx]
+        image_arr = X[idx].reshape(40, 30, 3)
         plt.imshow(image_arr)
         plt.show()
-        # normalize(X)
-        # image_arr = X[idx]
-        # plt.imshow(image_arr)
-        # plt.show()
 
     def train(self):
         shapes = [Shape.SQUIGGLE]
@@ -64,6 +63,8 @@ class CardRecognitionNN:
         X_test, y_test = self.db.load_card_data(Type.VALIDATION, shapes, numbers, colors, patterns)
         print "X-shape: %s, y-shape: %s" % (X_train.shape, y_train.shape)
         self.verify(X_train, y_train)
+        normalize(X_train)
+        normalize(X_test)
 
         model = self.create_convnn_model()
         minibatch_size = 32
@@ -82,18 +83,18 @@ class CardVisibilityNN:
         model = Sequential()
 
         # First convolutional layer
-        model.add(Convolution2D(32, 10, 10, border_mode='valid', input_shape=(40, 30, 3)))
+        model.add(Convolution2D(32, 3, 3, border_mode='valid', input_shape=(3, 40, 30)))
         model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
+        # model.add(MaxPooling2D(pool_size=(2, 2)))
 
         # Second convolutional layer
-        model.add(Convolution2D(64, 10, 10))
+        model.add(Convolution2D(64, 3, 3))
         model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
+        # model.add(MaxPooling2D(pool_size=(2, 2)))
 
         model.add(Flatten())
-        model.add(Dense(1024))
-        model.add(Activation('relu'))
+        # model.add(Dense(1024))
+        # model.add(Activation('relu'))
         model.add(Dropout(0.5))
 
         model.add(Dense(2))
@@ -106,14 +107,16 @@ class CardVisibilityNN:
     def train(self):
         X_train, y_train, X_test, y_test = self.db.load_visibility_data()
         print "X-shape: %s, y-shape: %s" % (X_train.shape, y_train.shape)
+        normalize(X_train)
+        normalize(X_test)
 
-        # model = create_nn_model()
-        # minibatch_size = 32
-        # model.fit(X_train, y_train,
-        #             batch_size=minibatch_size,
-        #             nb_epoch=100,
-        #             validation_data=(X_test, y_test),
-        #             verbose=1)
+        model = create_nn_model()
+        minibatch_size = 32
+        model.fit(X_train, y_train,
+                    batch_size=minibatch_size,
+                    nb_epoch=100,
+                    validation_data=(X_test, y_test),
+                    verbose=1)
 
 db = CardDatabase("cards.h5")
 recognition_nn = CardRecognitionNN(db)

@@ -34,19 +34,6 @@ def convertToOneHot(index, size):
     row[index % size] = 0.9
     return row
 
-def normalize(X):
-    X = X.astype('float')
-    maxes = X.max(axis=0)
-    print maxes.shape
-    for j in range(len(maxes)):
-        for i in range(3):
-            minval = maxes[...,i].min()
-            maxval = maxes[...,i].max()
-            if minval != maxval:
-                maxes[...,i] -= minval
-                maxes[...,i] *= (255.0/(maxval-minval))
-    X *= 1/maxes
-
 class CardDatabase:
     
     def __init__(self, db_filename):
@@ -61,19 +48,19 @@ class CardDatabase:
             train_visible = hf.get("train/visible")
             for image in train_visible.items():
                 X_train.append(np.array(image[1][()]))
-                y_train.append(1) # visible
+                y_train.append(convertToOneHot(1,2)) # visible
             train_invisible = hf.get("train/invisible")
             for image in train_invisible.items():
                 X_train.append(np.array(image[1][()]))
-                y_train.append(0) # not visible
+                y_train.append(convertToOneHot(0,2)) # not visible
             test_visible = hf.get("validation/visible")
             for image in test_visible.items():
                 X_test.append(np.array(image[1][()]))
-                y_test.append(1) # visible
+                y_test.append(convertToOneHot(1,2)) # visible
             test_invisible = hf.get("validation/invisible")
             for image in test_invisible.items():
                 X_test.append(np.array(image[1][()]))
-                y_test.append(0) # not visible
+                y_test.append(convertToOneHot(0,2)) # not visible
         X_train = np.array(X_train)
         y_train = np.array(y_train)
         X_test = np.array(X_test)

@@ -11,7 +11,7 @@ def get_group_names(root_dir):
     return dirs
 
 def load_image(filename):
-    return misc.imread(filename)
+    return misc.imread(filename).reshape(3, 40, 30)
 
 def get_image_files(dir):
     image_files = [f for f in listdir(dir) if f[0] != "."]
