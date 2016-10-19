@@ -8,7 +8,7 @@ import tensorflow as tf
 tf.python.control_flow_ops = tf
 
 def normalize(X):
-        X = X/255.
+    return X/255.
 
 class CardRecognitionNN:
 
@@ -19,7 +19,7 @@ class CardRecognitionNN:
         model = Sequential()
 
         # First convolutional layer
-        model.add(Convolution2D(32, 3, 3, border_mode='valid', input_shape=(3, 40, 30)))
+        model.add(Convolution2D(32, 3, 3, border_mode='valid', input_shape=(40, 30, 3)))
         model.add(Activation('relu'))
         # model.add(MaxPooling2D(pool_size=(2, 2)))
 
@@ -63,8 +63,8 @@ class CardRecognitionNN:
         X_test, y_test = self.db.load_card_data(Type.VALIDATION, shapes, numbers, colors, patterns)
         print "X-shape: %s, y-shape: %s" % (X_train.shape, y_train.shape)
         self.verify(X_train, y_train)
-        normalize(X_train)
-        normalize(X_test)
+        X_train = normalize(X_train)
+        X_test = normalize(X_test)
 
         model = self.create_convnn_model()
         minibatch_size = 32
@@ -83,7 +83,7 @@ class CardVisibilityNN:
         model = Sequential()
 
         # First convolutional layer
-        model.add(Convolution2D(32, 3, 3, border_mode='valid', input_shape=(3, 40, 30)))
+        model.add(Convolution2D(32, 3, 3, border_mode='valid', input_shape=(40, 30, 3)))
         model.add(Activation('relu'))
         # model.add(MaxPooling2D(pool_size=(2, 2)))
 
@@ -107,10 +107,10 @@ class CardVisibilityNN:
     def train(self):
         X_train, y_train, X_test, y_test = self.db.load_visibility_data()
         print "X-shape: %s, y-shape: %s" % (X_train.shape, y_train.shape)
-        normalize(X_train)
-        normalize(X_test)
+        X_train = normalize(X_train)
+        X_test = normalize(X_test)
 
-        model = create_nn_model()
+        model = self.create_nn_model()
         minibatch_size = 32
         model.fit(X_train, y_train,
                     batch_size=minibatch_size,
@@ -122,4 +122,4 @@ db = CardDatabase("cards.h5")
 recognition_nn = CardRecognitionNN(db)
 recognition_nn.train()
 visibility_nn = CardVisibilityNN(db)
-# visibility_nn.train()
+visibility_nn.train()
