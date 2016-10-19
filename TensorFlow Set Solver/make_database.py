@@ -21,6 +21,7 @@ def get_image_files(dir):
 def make_h5_db(db_filename):
     root_dir = "cards/"
     with h5py.File(db_filename, 'w') as hf:
+        # load recognition data
         group_names = get_group_names(root_dir)
         for name in group_names:
             # load training images
@@ -39,5 +40,23 @@ def make_h5_db(db_filename):
             for i in range(len(validation_image_files)):
                 file_path = validation_dir+validation_image_files[i]
                 validation_group.create_dataset(("img-%d"%i), data=load_image(file_path))
+        # load visibility data
+        root_dir = "visibility/"
+        for type in range(0,2):
+            for visibility in range(0,2):
+                data_type = "train"
+                if type == 1:
+                    data_type = "validation"
+                visibility_type = "visible"
+                if visibility == 1:
+                    visibility_type = "invisible"
+                name = data_type + "/" + visibility_type
+                print ("Creating hdf5 group: " + name)
+                group = hf.create_group(name)
+                dir = root_dir + visibility_type + "/" + data_type + "/"
+                image_files = get_image_files(dir)
+                for i in range(len(image_files)):
+                    file_path = dir+image_files[i]
+                    group.create_dataset(("img-%d"%i), data=load_image(file_path))
 
 make_h5_db("cards.h5")

@@ -35,11 +35,16 @@ def convertToOneHot(index, size):
     return row
 
 def normalize(X):
+    X = X.astype('float')
     maxes = X.max(axis=0)
     print maxes.shape
-    for i in range(len(maxes)):
-        if maxes[i] == 0:
-            maxes[i] = 0.1
+    for j in range(len(maxes)):
+        for i in range(3):
+            minval = maxes[...,i].min()
+            maxval = maxes[...,i].max()
+            if minval != maxval:
+                maxes[...,i] -= minval
+                maxes[...,i] *= (255.0/(maxval-minval))
     X *= 1/maxes
 
 class CardDatabase:
@@ -47,7 +52,35 @@ class CardDatabase:
     def __init__(self, db_filename):
         self.db_filename = db_filename
 
-    def load_data(self, type, shapes, numbers, colors, patterns):
+    def load_visibility_data(self):
+        X_train = [] # data
+        y_train = [] # labels
+        X_test = [] # data
+        y_test = [] # labels
+        with h5py.File(self.db_filename,'r') as hf:
+            train_visible = hf.get("train/visible")
+            for image in train_visible.items():
+                X_train.append(np.array(image[1][()]))
+                y_train.append(1) # visible
+            train_invisible = hf.get("train/invisible")
+            for image in train_invisible.items():
+                X_train.append(np.array(image[1][()]))
+                y_train.append(0) # not visible
+            test_visible = hf.get("validation/visible")
+            for image in test_visible.items():
+                X_test.append(np.array(image[1][()]))
+                y_test.append(1) # visible
+            test_invisible = hf.get("validation/invisible")
+            for image in test_invisible.items():
+                X_test.append(np.array(image[1][()]))
+                y_test.append(0) # not visible
+        X_train = np.array(X_train)
+        y_train = np.array(y_train)
+        X_test = np.array(X_test)
+        y_test = np.array(y_test)
+        return X_train, y_train, X_test, y_test
+
+    def load_card_data(self, type, shapes, numbers, colors, patterns):
         X = [] # data
         y_raw = [] # labels
         with h5py.File(self.db_filename,'r') as hf:
