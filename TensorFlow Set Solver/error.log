@@ -18,3 +18,7 @@ Traceback (most recent call last):
   File "/usr/local/lib/python2.7/site-packages/keras/backend/tensorflow_backend.py", line 1304, in in_train_phase                             
     x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),                                                                     
 AttributeError: 'module' object has no attribute 'control_flow_ops'    
+
+## fix:
+import tensorflow as tf
+tf.python.control_flow_ops = tf

@@ -1,9 +1,11 @@
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten, Convolution2D, MaxPooling2D
 from keras.optimizers import Adam
-import numpy as np
 from db_functions import *
-np.random.seed(42)
+import numpy as np
+# np.random.seed(42)
+import tensorflow as tf
+tf.python.control_flow_ops = tf
 
 def create_convnn_model():
     model = Sequential()

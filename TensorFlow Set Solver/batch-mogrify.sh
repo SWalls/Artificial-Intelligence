@@ -1,0 +1,1 @@
+for f in $(find cards -name '*.jpg'); do mogrify -resize 75 $f; done
