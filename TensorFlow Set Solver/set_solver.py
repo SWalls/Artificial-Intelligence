@@ -16,7 +16,6 @@ class CardRecognitionNN:
         model = Sequential()
 
         # First convolutional layer
-<<<<<<< HEAD
         model.add(Convolution2D(32, 5, 5, border_mode='valid', input_shape=(40, 30, 3)))
         model.add(Activation('relu'))
         # model.add(MaxPooling2D(pool_size=(2, 2)))
@@ -25,16 +24,6 @@ class CardRecognitionNN:
         model.add(Convolution2D(64, 5, 5))
         model.add(Activation('relu'))
         # model.add(MaxPooling2D(pool_size=(2, 2)))
-=======
-        model.add(Convolution2D(32, 10, 10, border_mode='valid', input_shape=(100, 75, 3)))
-        model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
-
-        # Second convolutional layer
-        model.add(Convolution2D(64, 10, 10))
-        model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
->>>>>>> 5119468694e7aebb4c84fe83cb0dd7bfb1ff8a00
 
         model.add(Flatten())
         model.add(Dense(1024))
@@ -76,7 +65,6 @@ class CardRecognitionNN:
         print "X-shape: %s, y-shape: %s" % (X_train.shape, y_train.shape)
         self.verify(X_train, y_train)
 
-<<<<<<< HEAD
         model = self.create_convnn_model()
         minibatch_size = 32
         model.fit(X_train, y_train,
@@ -84,15 +72,6 @@ class CardRecognitionNN:
                     nb_epoch=100,
                     validation_data=(X_test, y_test),
                     verbose=1)
-=======
-        # model = create_convnn_model()
-        # minibatch_size = 32
-        # model.fit(X_train, y_train,
-        #             batch_size=minibatch_size,
-        #             nb_epoch=100,
-        #             validation_data=(X_test, y_test),
-        #             verbose=1)
->>>>>>> 5119468694e7aebb4c84fe83cb0dd7bfb1ff8a00
 
 class CardVisibilityNN:
 
@@ -100,7 +79,6 @@ class CardVisibilityNN:
         self.db = db
 
     def create_nn_model(self):
-<<<<<<< HEAD
         model = Sequential()
 
         # First convolutional layer
@@ -124,9 +102,6 @@ class CardVisibilityNN:
         model.compile(loss='categorical_crossentropy', optimizer="adam", metrics=['accuracy'])
 
         return model
-=======
-        1
->>>>>>> 5119468694e7aebb4c84fe83cb0dd7bfb1ff8a00
 
     def train(self):
         X_train, y_train, X_test, y_test = self.db.load_visibility_data()
@@ -144,8 +119,4 @@ db = CardDatabase("cards.h5")
 recognition_nn = CardRecognitionNN(db)
 recognition_nn.train()
 visibility_nn = CardVisibilityNN(db)
-<<<<<<< HEAD
 # visibility_nn.train()
-=======
-visibility_nn.train()
->>>>>>> 5119468694e7aebb4c84fe83cb0dd7bfb1ff8a00
