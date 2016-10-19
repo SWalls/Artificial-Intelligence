@@ -1,0 +1,20 @@
+bash-3.2$ python set_solver.py                                                                                                                
+Using TensorFlow backend.
+Traceback (most recent call last):                                                                                                            
+  File "set_solver.py", line 41, in <module>                                                                                                  
+    model = create_convnn_model()                         
+  File "set_solver.py", line 24, in create_convnn_model                                                                                       
+    model.add(Dropout(0.5))                                                                                                                   
+  File "/usr/local/lib/python2.7/site-packages/keras/models.py", line 308, in add                                                             
+    output_tensor = layer(self.outputs[0])                                                                                                    
+  File "/usr/local/lib/python2.7/site-packages/keras/engine/topology.py", line 514, in __call__                                               
+    self.add_inbound_node(inbound_layers, node_indices, tensor_indices)                                                                       
+  File "/usr/local/lib/python2.7/site-packages/keras/engine/topology.py", line 572, in add_inbound_node                                       
+    Node.create_node(self, inbound_layers, node_indices, tensor_indices)                                                                      
+  File "/usr/local/lib/python2.7/site-packages/keras/engine/topology.py", line 149, in create_node                                            
+    output_tensors = to_list(outbound_layer.call(input_tensors[0], mask=input_masks[0]))                                                      
+  File "/usr/local/lib/python2.7/site-packages/keras/layers/core.py", line 90, in call                                                        
+    x = K.in_train_phase(K.dropout(x, self.p, noise_shape), x)                                                                                
+  File "/usr/local/lib/python2.7/site-packages/keras/backend/tensorflow_backend.py", line 1304, in in_train_phase                             
+    x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),                                                                     
+AttributeError: 'module' object has no attribute 'control_flow_ops'    
