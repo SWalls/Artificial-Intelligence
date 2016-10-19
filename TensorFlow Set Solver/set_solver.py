@@ -11,7 +11,7 @@ def create_convnn_model():
     model = Sequential()
 
     # First convolutional layer
-    model.add(Convolution2D(32, 5, 5, border_mode='valid', input_shape=(400, 300, 3)))
+    model.add(Convolution2D(32, 5, 5, border_mode='valid', input_shape=(100, 75, 3)))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
@@ -40,6 +40,7 @@ patterns = [Pattern.EMPTY, Pattern.FILLED, Pattern.STRIPES]
 db = CardDatabase("cards.h5")
 X_train, y_train = db.load_data(Type.TRAIN, shapes, numbers, colors, patterns)
 X_test, y_test = db.load_data(Type.VALIDATION, shapes, numbers, colors, patterns)
+print X_train.shape, y_train.shape
 model = create_convnn_model()
 minibatch_size = 32
 model.fit(X_train, y_train,
