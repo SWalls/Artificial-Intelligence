@@ -1,112 +1,81 @@
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, Flatten, Convolution2D, MaxPooling2D
-from keras.optimizers import Adam
 from db_functions import *
-import os
+from neural_network import *
+from scipy import misc
 import numpy as np
 # np.random.seed(42)
-import tensorflow as tf
-tf.python.control_flow_ops = tf
 
-def normalize(X):
-    return X/255.
+def get_card_idx_from_window_bounds(left, right, top, bottom, width, height):
+    center_x = left + ((right - left)/2)
+    center_y = top + ((bottom - top)/2)
+    is_top_third = center_y < height/3
+    is_middle_third = (center_y >= height/3 and center_y < 2*(height/3))
+    if(center_x < width/3):
+        if(is_top_third): return 0
+        elif(is_middle_third): return 1
+        else: return 2
+    elif(center_x >= width/3 and center_x < 2*(width/3)):
+        if(is_top_third): return 3
+        elif(is_middle_third): return 4
+        else: return 5
+    else:
+        if(is_top_third): return 6
+        elif(is_middle_third): return 7
+        else: return 8
 
-class ConvolutionalNN:
+def solve_set_grid(db_file_path, grid_image_path):
+    db = CardDatabase(db_file_path)
+    recognition_nn = CardRecognitionNN(db)
+    recognition_model = recognition_nn.train()
+    visibility_nn = CardVisibilityNN(db)
+    visibility_model = visibility_nn.train()
 
-    def __init__(self, db):
-        self.db = db
+    grid_image = misc.imread(grid_image_path)
+    WINDOW_WIDTH = 30
+    WINDOW_HEIGHT = 40
+    grid_width = len(grid_image[0])
+    grid_height = len(grid_image)
+    print "Grid width: %d, height: %d" % (grid_width, grid_height)
+    print "Solving grid of set cards..."
 
-    def create_model(self, in_shape, out_size):
-        model = Sequential()
+    # there are 9 locations on the board, each with 9 possible votes
+    card_votes = np.zeros((9,9))
 
-        # First convolutional layer
-        model.add(Convolution2D(32, 3, 3, border_mode='valid', input_shape=in_shape))
-        model.add(Activation('relu'))
-        # model.add(MaxPooling2D(pool_size=(2, 2)))
+    # start looping through image with a window
+    for row in range(0, grid_height-WINDOW_HEIGHT, 2):
+        for col in range(0, grid_width-WINDOW_WIDTH, 2):
+            # build window from pixels
+            window = []
+            for i in range(WINDOW_HEIGHT):
+                window.append([])
+                for j in range(WINDOW_WIDTH):
+                    window[i].append(grid_image[row+i][col+j])
+            window = np.array(window)
+            # show pixels collected in window
+            # plt.imshow(window)
+            # plt.show()
+            # run window of pixels through nn model to decide if it contains a card
+            window = window.reshape(1, 40, 30, 3)
+            visible = visibility_model.predict(window)
+            if(visible[0][1] == 1):
+                # the window contains a card!
+                # run the pixels through nn model to decide which card it is
+                recognized = recognition_model.predict(window)[0]
+                card_idx = get_card_idx_from_window_bounds(col, col+WINDOW_WIDTH,
+                                row, row+WINDOW_HEIGHT, grid_width, grid_height)
+                card_votes[card_idx] += recognized
+    
+    print "Made final decisions!"
+    card_decisions = card_votes.argmax(axis=1)
+    for i in range(len(card_decisions)):
+        print "Card %d:" % i,
+        print CardDatabase.get_description(card_decisions[i]+9)
+        # set this max idx to zero to get secondary max next time
+        card_votes[i][card_decisions[i]] = 0
+    print "Secondary choices:"
+    second_decisions = card_votes.argmax(axis=1)
+    for i in range(len(second_decisions)):
+        print "Card %d:" % i,
+        print CardDatabase.get_description(second_decisions[i]+9)
 
-        # Second convolutional layer
-        model.add(Convolution2D(64, 3, 3))
-        model.add(Activation('relu'))
-        # model.add(MaxPooling2D(pool_size=(2, 2)))
-
-        model.add(Flatten())
-        # model.add(Dense(1024))
-        # model.add(Activation('relu'))
-        model.add(Dropout(0.5))
-
-        model.add(Dense(out_size))
-        model.add(Activation('softmax'))
-
-        model.compile(loss='categorical_crossentropy', optimizer="adam", metrics=['accuracy'])
-
-        return model
-
-class CardRecognitionNN(ConvolutionalNN):
-
-    def verify(self, X, y):
-        print "Verifying random data entry..."
-        idx = np.random.randint(0, len(y))
-        print "y[%d] =" % idx,
-        print y[idx]
-        label = np.where(y[idx]==0.9)[0] + 9
-        print "label = %d," % label,
-        print "description =",
-        print CardDatabase.get_description(label)
-        image_arr = X[idx].reshape(40, 30, 3)
-        plt.imshow(image_arr)
-        plt.show()
-
-    def train(self):
-        shapes = [Shape.SQUIGGLE]
-        numbers = [Number.TWO]
-        colors = [Color.GREEN, Color.PURPLE, Color.RED]
-        patterns = [Pattern.EMPTY, Pattern.FILLED, Pattern.STRIPES]
-
-        X_train, y_train = self.db.load_card_data(Type.TRAIN, shapes, numbers, colors, patterns)
-        X_test, y_test = self.db.load_card_data(Type.VALIDATION, shapes, numbers, colors, patterns)
-        print "Recognition... X-shape: %s, y-shape: %s" % (X_train.shape, y_train.shape)
-        self.verify(X_train, y_train)
-        X_train = normalize(X_train)
-        X_test = normalize(X_test)
-
-        model = self.create_model((40, 30, 3), 9)
-        model_filename = 'recognition_model_weights.h5'
-        if(os.path.isfile(model_filename)):
-            print "Loaded recognition weights from file!"
-            model.load_weights(model_filename)
-        else:
-            minibatch_size = 32
-            model.fit(X_train, y_train,
-                        batch_size=minibatch_size,
-                        nb_epoch=100,
-                        validation_data=(X_test, y_test),
-                        verbose=1)
-            model.save_weights(model_filename)
-
-class CardVisibilityNN(ConvolutionalNN):
-
-    def train(self):
-        X_train, y_train, X_test, y_test = self.db.load_visibility_data()
-        print "Visibility... X-shape: %s, y-shape: %s" % (X_train.shape, y_train.shape)
-        X_train = normalize(X_train)
-        X_test = normalize(X_test)
-
-        model = self.create_model((40, 30, 3), 2)
-        model_filename = 'visibility_model_weights.h5'
-        if(os.path.isfile(model_filename)):
-            print "Loaded visibility weights from file!"
-            model.load_weights(model_filename)
-        else:
-            minibatch_size = 32
-            model.fit(X_train, y_train,
-                        batch_size=minibatch_size,
-                        nb_epoch=100,
-                        validation_data=(X_test, y_test),
-                        verbose=1)
-            model.save_weights(model_filename)
-
-db = CardDatabase("cards.h5")
-recognition_nn = CardRecognitionNN(db)
-recognition_nn.train()
-visibility_nn = CardVisibilityNN(db)
-visibility_nn.train()
+solve_set_grid("cards.h5", "grid/grid-1.jpg")

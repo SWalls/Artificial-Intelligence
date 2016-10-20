@@ -69,7 +69,7 @@ class CardDatabase:
 
     def load_card_data(self, type, shapes, numbers, colors, patterns):
         X = [] # data
-        y_raw = [] # labels
+        y = [] # labels
         with h5py.File(self.db_filename,'r') as hf:
             data_group = hf.get(type)
             for shape in shapes:
@@ -83,13 +83,8 @@ class CardDatabase:
                             label = CardDatabase.get_label(shape, number, color, pattern)
                             for image in pattern_group.items():
                                 X.append(np.array(image[1][()]))
-                                y_raw.append(label)
+                                y.append(convertToOneHot(label, NUM_LABELS))
         X = np.array(X)
-        # normalize(X)
-        # Convert y to correct data structure with rows of labels
-        y = []
-        for label in y_raw:
-            y.append(convertToOneHot(label, NUM_LABELS))
         y = np.array(y)
         return X, y
 
